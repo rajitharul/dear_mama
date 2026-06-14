@@ -2,6 +2,7 @@ export { AppText } from '@/ui/AppText';
 export { Button } from '@/ui/Button';
 export { Card } from '@/ui/Card';
 export { ChipListInput } from '@/ui/ChipListInput';
+export { ChipSelect } from '@/ui/ChipSelect';
 export { DateField } from '@/ui/DateField';
 export { Field } from '@/ui/Field';
 export { Illustration, type IllustrationName } from '@/ui/Illustration';

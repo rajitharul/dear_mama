@@ -18,10 +18,15 @@ export type OnboardingData = {
   babyCount: string; // '1' | '2' | '3' | '4' → one / twins / triplets / more
   // Medical (optional)
   bloodType: string;
+  rhFactor: '' | 'positive' | 'negative';
+  prePregnancyWeight: string; // free text incl. unit, e.g. "62 kg"
+  height: string; // free text incl. unit, e.g. "165 cm"
   conditions: string[];
   allergies: string[];
   medications: string[];
   priorPregnancies: string;
+  obstetricHistory: string[]; // e.g. ["C-section", "Preeclampsia"]
+  lifestyleFlags: string[]; // e.g. ["Smoking", "Alcohol"]
   medicalNotes: string;
   // Contacts & care team (optional)
   emergencyName: string;
@@ -44,10 +49,15 @@ export const emptyOnboarding: OnboardingData = {
   dueDateDoctor: '',
   babyCount: '1',
   bloodType: '',
+  rhFactor: '',
+  prePregnancyWeight: '',
+  height: '',
   conditions: [],
   allergies: [],
   medications: [],
   priorPregnancies: '',
+  obstetricHistory: [],
+  lifestyleFlags: [],
   medicalNotes: '',
   emergencyName: '',
   emergencyPhone: '',

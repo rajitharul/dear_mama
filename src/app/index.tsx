@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { AppTabs } from '@/app/AppTabs';
 import { signOut } from '@/features/auth/api';
 import { SignIn } from '@/features/auth/SignIn';
 import { useSession } from '@/features/auth/session';
-import { Home } from '@/home/Home';
 import { Onboarding } from '@/onboarding/Onboarding';
 import type { OnboardingData } from '@/onboarding/types';
 import { loadProfile, saveProfile } from '@/profile/api';
@@ -61,6 +61,16 @@ function Authed({ userId }: { userId: string }) {
     await signOut();
   }
 
+  // Direct profile save (e.g. editing the medical baseline from the Care tab) —
+  // persists and updates state in place, without re-entering the onboarding wizard.
+  const saveProfileDirect = useCallback(
+    async (d: OnboardingData) => {
+      await saveProfile(userId, d);
+      setProfile(d);
+    },
+    [userId],
+  );
+
   if (state === 'loading') return <Splash />;
   if (state === 'error') return <ErrorRetry onRetry={retry} onSignOut={handleSignOut} />;
 
@@ -78,7 +88,14 @@ function Authed({ userId }: { userId: string }) {
     );
   }
 
-  return <Home data={profile} onEdit={() => setEditing(true)} onSignOut={handleSignOut} />;
+  return (
+    <AppTabs
+      data={profile}
+      onEdit={() => setEditing(true)}
+      onSignOut={handleSignOut}
+      onSaveProfile={saveProfileDirect}
+    />
+  );
 }
 
 function Splash() {

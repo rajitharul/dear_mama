@@ -12,10 +12,15 @@ type ProfileRow = {
   due_date_doctor: string | null;
   baby_count: number;
   blood_type: string | null;
+  rh_factor: 'positive' | 'negative' | null;
+  pre_pregnancy_weight: string | null;
+  height: string | null;
   conditions: string[];
   allergies: string[];
   medications: string[];
   prior_pregnancies: number | null;
+  obstetric_history: string[];
+  lifestyle_flags: string[];
   medical_notes: string | null;
   emergency_name: string | null;
   emergency_phone: string | null;
@@ -44,10 +49,15 @@ function toRow(userId: string, d: OnboardingData): ProfileRow {
     due_date_doctor: trimOrNull(d.dueDateDoctor),
     baby_count: count,
     blood_type: trimOrNull(d.bloodType),
+    rh_factor: d.rhFactor || null,
+    pre_pregnancy_weight: trimOrNull(d.prePregnancyWeight),
+    height: trimOrNull(d.height),
     conditions: d.conditions,
     allergies: d.allergies,
     medications: d.medications,
     prior_pregnancies: intOrNull(d.priorPregnancies),
+    obstetric_history: d.obstetricHistory,
+    lifestyle_flags: d.lifestyleFlags,
     medical_notes: trimOrNull(d.medicalNotes),
     emergency_name: trimOrNull(d.emergencyName),
     emergency_phone: trimOrNull(d.emergencyPhone),
@@ -70,10 +80,15 @@ function fromRow(r: ProfileRow): OnboardingData {
     dueDateDoctor: r.due_date_doctor ?? '',
     babyCount: String(r.baby_count ?? 1),
     bloodType: r.blood_type ?? '',
+    rhFactor: r.rh_factor ?? '',
+    prePregnancyWeight: r.pre_pregnancy_weight ?? '',
+    height: r.height ?? '',
     conditions: r.conditions ?? [],
     allergies: r.allergies ?? [],
     medications: r.medications ?? [],
     priorPregnancies: r.prior_pregnancies == null ? '' : String(r.prior_pregnancies),
+    obstetricHistory: r.obstetric_history ?? [],
+    lifestyleFlags: r.lifestyle_flags ?? [],
     medicalNotes: r.medical_notes ?? '',
     emergencyName: r.emergency_name ?? '',
     emergencyPhone: r.emergency_phone ?? '',
