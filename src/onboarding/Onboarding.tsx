@@ -80,7 +80,7 @@ const STEPS: StepMeta[] = [
     subtitle: 'Review your details before we begin.',
     icon: 'sparkles-outline',
     art: 'review',
-    reward: { art: 'rewardFinale', title: 'Your journey is ready, mama', subtitle: 'Welcome to DearMama. We’ll be with you every step of the way.' },
+    reward: { art: 'rewardBaby', title: 'Your journey is ready, mama', subtitle: 'Welcome to DearMama. We’ll be with you every step of the way.' },
     Comp: ReviewStep,
     optional: false,
     valid: () => true,
@@ -114,31 +114,29 @@ export function Onboarding({
     return <Welcome onBegin={() => setStarted(true)} />;
   }
 
-  async function goNext() {
-    // Every Continue earns a celebration first; the inter-step ones advance on dismiss.
-    if (!isLast) {
-      setReward(true);
-      return;
-    }
-    // Finale: celebrate while we save, with a minimum on-screen beat so it never flickers by.
+  // Every Continue earns a celebration; the finale then waits for the user to tap
+  // Continue, so the saving (and navigation to Home) happens in onRewardDone.
+  function goNext() {
     setReward(true);
-    setSaving(true);
-    try {
-      await Promise.all([onComplete(draft), new Promise((r) => setTimeout(r, 1600))]);
-    } catch (e) {
-      setReward(false);
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
-    } finally {
-      setSaving(false);
-    }
   }
 
-  // Dismissing an inter-step reward reveals the next step behind it. The finale's
-  // dismissal is a no-op — onComplete swaps the screen to Home for us.
-  function onRewardDone() {
-    if (isLast) return;
-    setReward(false);
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  // Inter-step rewards reveal the next step behind them. On the finale, the user
+  // tapping Continue persists the profile — then the parent swaps the screen to Home.
+  async function onRewardDone() {
+    if (!isLast) {
+      setReward(false);
+      setStep((s) => Math.min(s + 1, STEPS.length - 1));
+      return;
+    }
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onComplete(draft);
+    } catch (e) {
+      setSaving(false);
+      setReward(false);
+      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+    }
   }
 
   return (
@@ -198,6 +196,7 @@ export function Onboarding({
         visible={reward}
         content={meta.reward}
         finale={isLast}
+        busy={saving}
         progressLabel={isLast ? undefined : `Step ${step + 1} of ${STEPS.length} complete`}
         onDone={onRewardDone}
       />

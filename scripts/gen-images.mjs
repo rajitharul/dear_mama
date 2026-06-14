@@ -68,6 +68,10 @@ const PROMPTS = {
     'A joyful celebratory abstract motif of a lush, radiant flower in full bloom haloed by soft light, ' +
     'surrounded by gently floating petals, leaves and twinkling sparkles like a quiet celebration, ' +
     'warm, triumphant and tender, the journey beautifully complete. ' + STYLE,
+  rewardBaby:
+    'A tender, loving motif of a peaceful swaddled sleeping newborn baby with eyes gently closed, ' +
+    'cradled in soft, cupped leaf-like hands, surrounded by a gentle warm glow and a few floating ' +
+    'hearts and sparkles, deeply soothing and celebratory. Cute simple rounded baby face, no text. ' + STYLE,
 };
 
 async function gen(key, name, prompt) {

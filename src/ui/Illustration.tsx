@@ -15,6 +15,7 @@ const ART = {
   reward3: require('../../assets/images/onboarding/reward3.png'),
   reward4: require('../../assets/images/onboarding/reward4.png'),
   rewardFinale: require('../../assets/images/onboarding/rewardFinale.png'),
+  rewardBaby: require('../../assets/images/onboarding/rewardBaby.png'),
 } as const;
 
 export type IllustrationName = keyof typeof ART;
