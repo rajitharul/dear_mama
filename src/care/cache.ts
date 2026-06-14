@@ -1,24 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { CareLog } from '@/care/api';
+import type { CareLog, CareLogData, LogType } from '@/care/api';
 
-// Local mirror of the user's Care logs — used for instant render and as an
-// offline fallback when Supabase is unreachable. Supabase is the source of truth.
-const VITALS_KEY = 'dearmama.carelogs.vitals.v1';
+// Local mirror of the user's Care logs, one bucket per log type — used for instant
+// render and as an offline fallback when Supabase is unreachable. Supabase is the
+// source of truth.
+const ALL_TYPES: LogType[] = ['vital', 'symptom', 'actionable', 'test_result'];
+const key = (type: LogType) => `dearmama.carelogs.${type}.v1`;
 
-export async function loadVitalsCache(): Promise<CareLog[]> {
+export async function loadLogCache<T extends CareLogData>(type: LogType): Promise<CareLog<T>[]> {
   try {
-    const raw = await AsyncStorage.getItem(VITALS_KEY);
+    const raw = await AsyncStorage.getItem(key(type));
     if (!raw) return [];
-    return JSON.parse(raw) as CareLog[];
+    return JSON.parse(raw) as CareLog<T>[];
   } catch {
     return [];
   }
 }
 
-export async function saveVitalsCache(logs: CareLog[]): Promise<void> {
+export async function saveLogCache(type: LogType, logs: CareLog[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(VITALS_KEY, JSON.stringify(logs));
+    await AsyncStorage.setItem(key(type), JSON.stringify(logs));
   } catch {
     // ignore cache write failures
   }
@@ -27,7 +29,7 @@ export async function saveVitalsCache(logs: CareLog[]): Promise<void> {
 /** Clear all Care log caches (called on sign-out alongside the profile cache). */
 export async function clearCareCache(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(VITALS_KEY);
+    await AsyncStorage.multiRemove(ALL_TYPES.map(key));
   } catch {
     // ignore
   }

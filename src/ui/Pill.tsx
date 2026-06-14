@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { AppText } from '@/ui/AppText';
 import { useTheme } from '@/theme';
 
-type Tone = 'neutral' | 'accent' | 'success';
+type Tone = 'neutral' | 'accent' | 'success' | 'danger';
 
 export function Pill({
   label,
@@ -20,6 +20,7 @@ export function Pill({
     neutral: { bg: t.colors.surfaceMuted, fg: t.colors.textSecondary },
     accent: { bg: t.colors.accentSoft, fg: t.colors.accent },
     success: { bg: t.colors.successSoft, fg: t.colors.success },
+    danger: { bg: t.colors.dangerSoft, fg: t.colors.danger },
   };
   const c = tones[tone];
 

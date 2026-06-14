@@ -1,7 +1,9 @@
 import { format } from 'date-fns';
 
-import { loadVitalsCache, saveVitalsCache } from '@/care/cache';
+import { loadLogCache, saveLogCache } from '@/care/cache';
 import { supabase } from '@/lib/supabase';
+
+export type LogType = 'vital' | 'symptom' | 'actionable' | 'test_result';
 
 // ─── Vital payloads (discriminated by `kind`, stored in `care_logs.data` jsonb) ───
 export type WeightUnit = 'kg' | 'lb';
@@ -20,23 +22,33 @@ export type BloodSugarData = {
 export type VitalData = BpData | WeightData | BloodSugarData;
 export type VitalKind = VitalData['kind'];
 
-/** A Care log as used by the app (currently only vitals). */
-export type CareLog = {
+// ─── Symptom payload ───
+export type SymptomSeverity = 'mild' | 'moderate' | 'severe';
+export type SymptomData = { kind: 'symptom'; symptom: string; severity: SymptomSeverity; note?: string };
+
+export type CareLogData = VitalData | SymptomData;
+
+/** A Care log as used by the app, generic over its payload type. */
+export type CareLog<T extends CareLogData = CareLogData> = {
   id: string;
   loggedAt: string; // ISO timestamp
-  data: VitalData;
+  data: T;
 };
 
-type CareLogRow = {
+type CareLogRow<T extends CareLogData> = {
   id: string;
   user_id: string;
   log_type: string;
   logged_at: string;
   logged_date: string;
-  data: VitalData;
+  data: T;
 };
 
-const fromRow = (r: CareLogRow): CareLog => ({ id: r.id, loggedAt: r.logged_at, data: r.data });
+const fromRow = <T extends CareLogData>(r: CareLogRow<T>): CareLog<T> => ({
+  id: r.id,
+  loggedAt: r.logged_at,
+  data: r.data,
+});
 
 // Supabase's PostgrestError is a plain object (not an Error), so surface its real
 // message/details instead of letting callers fall back to a generic string.
@@ -45,27 +57,34 @@ function toError(error: { message?: string; details?: string; hint?: string }): 
   return new Error(parts.join(' — ') || 'Request failed');
 }
 
-/** Fetch the signed-in user's vital logs, newest first. Bounded by a timeout; refreshes the cache. */
-export async function listVitals(): Promise<CareLog[]> {
+// ─── Generic log operations (shared by every logger) ───
+
+/** Fetch the signed-in user's logs of a type, newest first. Bounded; refreshes the cache. */
+async function listLogs<T extends CareLogData>(logType: LogType): Promise<CareLog<T>[]> {
   const { data, error } = await supabase
     .from('care_logs')
     .select('*')
-    .eq('log_type', 'vital')
+    .eq('log_type', logType)
     .order('logged_at', { ascending: false })
     .abortSignal(AbortSignal.timeout(8000));
   if (error) throw toError(error);
-  const logs = (data as CareLogRow[]).map(fromRow);
-  saveVitalsCache(logs); // keep the offline mirror fresh
+  const logs = (data as CareLogRow<T>[]).map(fromRow);
+  saveLogCache(logType, logs); // keep the offline mirror fresh
   return logs;
 }
 
-/** Insert a new vital reading and return it. Updates the offline cache on success. */
-export async function addVital(userId: string, payload: VitalData, loggedAt: Date): Promise<CareLog> {
+/** Insert a new log and return it. Updates the offline cache on success. */
+async function addLog<T extends CareLogData>(
+  userId: string,
+  logType: LogType,
+  payload: T,
+  loggedAt: Date,
+): Promise<CareLog<T>> {
   const { data, error } = await supabase
     .from('care_logs')
     .insert({
       user_id: userId,
-      log_type: 'vital',
+      log_type: logType,
       logged_at: loggedAt.toISOString(),
       logged_date: format(loggedAt, 'yyyy-MM-dd'),
       data: payload,
@@ -74,20 +93,32 @@ export async function addVital(userId: string, payload: VitalData, loggedAt: Dat
     .abortSignal(AbortSignal.timeout(10000))
     .single();
   if (error) throw toError(error);
-  const log = fromRow(data as CareLogRow);
-  const cached = await loadVitalsCache();
-  saveVitalsCache([log, ...cached]);
+  const log = fromRow(data as CareLogRow<T>);
+  const cached = await loadLogCache<T>(logType);
+  saveLogCache(logType, [log, ...cached]);
   return log;
 }
 
-/** Delete a log by id. Updates the offline cache on success. */
-export async function deleteLog(id: string): Promise<void> {
+/** Delete a log by id. Updates the offline cache for its type on success. */
+export async function deleteLog(id: string, logType: LogType): Promise<void> {
   const { error } = await supabase
     .from('care_logs')
     .delete()
     .eq('id', id)
     .abortSignal(AbortSignal.timeout(10000));
   if (error) throw toError(error);
-  const cached = await loadVitalsCache();
-  saveVitalsCache(cached.filter((l) => l.id !== id));
+  const cached = await loadLogCache(logType);
+  saveLogCache(
+    logType,
+    cached.filter((l) => l.id !== id),
+  );
 }
+
+// ─── Per-feature wrappers ───
+export const listVitals = () => listLogs<VitalData>('vital');
+export const addVital = (userId: string, payload: VitalData, loggedAt: Date) =>
+  addLog(userId, 'vital', payload, loggedAt);
+
+export const listSymptoms = () => listLogs<SymptomData>('symptom');
+export const addSymptom = (userId: string, payload: SymptomData, loggedAt: Date) =>
+  addLog(userId, 'symptom', payload, loggedAt);

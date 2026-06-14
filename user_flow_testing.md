@@ -65,3 +65,48 @@ expected result. Update this as new features ship.
 - ✅ Clear "Could not save" alert (no hang). *(No offline write queue yet — writes need a live connection.)*
 3. Disable Airplane mode, reopen.
 - ✅ List refreshes; pill gone.
+
+---
+
+## Care · Physical · Symptoms logger
+
+**Prerequisite:** the `care_logs` table exists (migration `0003`). No new migration — symptoms reuse the same table with `log_type = 'symptom'`.
+
+### Flow 1 — Navigate to the Symptoms logger
+1. Care → **Physical care** → **Symptoms** card.
+- ✅ Symptoms screen with a "Log a symptom" button; empty state ("No symptoms logged") when there are none.
+
+### Flow 2 — Log a preset symptom with severity
+1. Tap **Log a symptom** → pick a preset (e.g. Nausea) → choose a severity (Mild / Moderate / Severe).
+2. Optionally set Date & time and a note → **Save symptom**.
+- ✅ Writes to `care_logs` (`log_type = 'symptom'`), mirrors to cache.
+- ✅ Card appears at top with the symptom name, a colored severity pill, and date & time.
+
+### Flow 3 — "Other" free-text symptom
+1. Log a symptom → pick **Other**.
+- ✅ A "Describe the symptom" field appears.
+2. Save with it blank.
+- ✅ Inline "Please describe the symptom" error; nothing saves.
+3. Enter custom text (e.g. "Dizziness") → Save.
+- ✅ Logs that text as the symptom.
+
+### Flow 4 — Severity colors
+1. Log entries at Mild, Moderate, and Severe.
+- ✅ Pill colors differ: Mild = green, Moderate = sage, Severe = red.
+
+### Flow 5 — Persistence
+1. Switch tabs / reopen the app.
+- ✅ Entries persist (loaded from the database; cache as fallback).
+2. Confirm rows in Supabase **Table Editor → `care_logs`** with `log_type = 'symptom'`.
+
+### Flow 6 — Delete a symptom
+1. Tap the trash icon → confirm dialog → **Delete**.
+- ✅ Removed from the database and the list; stays gone after reload.
+
+### Flow 7 — Offline / anti-hang
+1. Airplane mode → reopen the Symptoms screen.
+- ✅ List renders from cache with a "Showing saved entries — couldn't refresh" pill; no spinner hang.
+2. Try to save while offline.
+- ✅ Clear "Could not save" alert (no hang).
+3. Disable Airplane mode, reopen.
+- ✅ List refreshes; pill gone.

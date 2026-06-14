@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ComingSoon } from '@/care/ComingSoon';
 import { PhysicalBaselineEdit } from '@/care/physical/PhysicalBaselineEdit';
+import { SymptomsLogger } from '@/care/physical/SymptomsLogger';
 import { VitalsLogger } from '@/care/physical/VitalsLogger';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
@@ -74,6 +75,9 @@ export function PhysicalCare({
   if (feature) {
     if (feature.key === 'vitals') {
       return <VitalsLogger userId={userId} onBack={() => setFeature(null)} />;
+    }
+    if (feature.key === 'symptoms') {
+      return <SymptomsLogger userId={userId} onBack={() => setFeature(null)} />;
     }
     return (
       <ComingSoon

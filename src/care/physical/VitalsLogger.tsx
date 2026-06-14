@@ -24,7 +24,7 @@ import {
   type VitalKind,
   type WeightUnit,
 } from '@/care/api';
-import { loadVitalsCache } from '@/care/cache';
+import { loadLogCache } from '@/care/cache';
 import { useTheme } from '@/theme';
 import { AppText, Button, calmRise, Card, ChipSelect, DateField, Field, Pill } from '@/ui';
 
@@ -58,7 +58,7 @@ export function VitalsLogger({ userId, onBack }: { userId: string; onBack: () =>
   const t = useTheme();
   const reduce = useReducedMotion();
   const [mode, setMode] = useState<'list' | 'add'>('list');
-  const [logs, setLogs] = useState<CareLog[]>([]);
+  const [logs, setLogs] = useState<CareLog<VitalData>[]>([]);
   const [loading, setLoading] = useState(true);
   const [stale, setStale] = useState(false);
 
@@ -69,7 +69,7 @@ export function VitalsLogger({ userId, onBack }: { userId: string; onBack: () =>
       setStale(false);
     } catch {
       // Network/timeout: show the offline mirror instead of hanging.
-      const cached = await loadVitalsCache();
+      const cached = await loadLogCache<VitalData>('vital');
       setLogs(cached);
       setStale(true);
     } finally {
@@ -83,7 +83,7 @@ export function VitalsLogger({ userId, onBack }: { userId: string; onBack: () =>
     void load();
   }, [load]);
 
-  function confirmDelete(log: CareLog) {
+  function confirmDelete(log: CareLog<VitalData>) {
     Alert.alert('Delete reading?', 'This will remove it from your records.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -93,7 +93,7 @@ export function VitalsLogger({ userId, onBack }: { userId: string; onBack: () =>
           const prev = logs;
           setLogs((l) => l.filter((x) => x.id !== log.id)); // optimistic
           try {
-            await deleteLog(log.id);
+            await deleteLog(log.id, 'vital');
           } catch (e) {
             setLogs(prev); // revert
             Alert.alert('Could not delete', e instanceof Error ? e.message : 'Please try again.');
@@ -232,7 +232,7 @@ function AddVitalForm({
 }: {
   userId: string;
   onCancel: () => void;
-  onSaved: (log: CareLog) => void;
+  onSaved: (log: CareLog<VitalData>) => void;
 }) {
   const t = useTheme();
   const [kind, setKind] = useState<VitalKind>('bp');
