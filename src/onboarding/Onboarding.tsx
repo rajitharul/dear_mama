@@ -4,6 +4,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } fr
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { errorMessage } from '@/lib/errors';
 import { ContactsStep } from '@/onboarding/steps/Contacts';
 import { MedicalStep } from '@/onboarding/steps/Medical';
 import { PregnancyStep } from '@/onboarding/steps/Pregnancy';
@@ -135,7 +136,7 @@ export function Onboarding({
     } catch (e) {
       setSaving(false);
       setReward(false);
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert('Could not save', errorMessage(e));
     }
   }
 

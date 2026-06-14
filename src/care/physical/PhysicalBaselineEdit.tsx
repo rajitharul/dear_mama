@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { errorMessage } from '@/lib/errors';
 import { MedicalStep } from '@/onboarding/steps/Medical';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
@@ -45,7 +46,7 @@ export function PhysicalBaselineEdit({
       onCancel();
     } catch (e) {
       setSaving(false);
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert('Could not save', errorMessage(e));
     }
   }
 

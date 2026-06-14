@@ -25,6 +25,7 @@ import {
   type WeightUnit,
 } from '@/care/api';
 import { loadLogCache } from '@/care/cache';
+import { errorMessage } from '@/lib/errors';
 import { useTheme } from '@/theme';
 import { AppText, Button, calmRise, Card, ChipSelect, DateField, Field, Pill } from '@/ui';
 
@@ -96,7 +97,7 @@ export function VitalsLogger({ userId, onBack }: { userId: string; onBack: () =>
             await deleteLog(log.id, 'vital');
           } catch (e) {
             setLogs(prev); // revert
-            Alert.alert('Could not delete', e instanceof Error ? e.message : 'Please try again.');
+            Alert.alert('Could not delete', errorMessage(e));
           }
         },
       },
@@ -287,7 +288,7 @@ function AddVitalForm({
       onSaved(log);
     } catch (e) {
       setSaving(false);
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert('Could not save', errorMessage(e));
     }
   }
 

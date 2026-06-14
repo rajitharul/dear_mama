@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { addSymptom, deleteLog, listSymptoms, type CareLog, type SymptomData, type SymptomSeverity } from '@/care/api';
 import { loadLogCache } from '@/care/cache';
+import { errorMessage } from '@/lib/errors';
 import { useTheme } from '@/theme';
 import { AppText, Button, calmRise, Card, ChipSelect, DateField, Field, Pill } from '@/ui';
 
@@ -81,7 +82,7 @@ export function SymptomsLogger({ userId, onBack }: { userId: string; onBack: () 
             await deleteLog(log.id, 'symptom');
           } catch (e) {
             setLogs(prev); // revert
-            Alert.alert('Could not delete', e instanceof Error ? e.message : 'Please try again.');
+            Alert.alert('Could not delete', errorMessage(e));
           }
         },
       },
@@ -233,7 +234,7 @@ function AddSymptomForm({
       onSaved(log);
     } catch (e) {
       setSaving(false);
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert('Could not save', errorMessage(e));
     }
   }
 

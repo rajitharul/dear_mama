@@ -4,6 +4,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ActionablesLogger } from '@/care/physical/ActionablesLogger';
 import { ComingSoon } from '@/care/ComingSoon';
 import { PhysicalBaselineEdit } from '@/care/physical/PhysicalBaselineEdit';
 import { SymptomsLogger } from '@/care/physical/SymptomsLogger';
@@ -78,6 +79,9 @@ export function PhysicalCare({
     }
     if (feature.key === 'symptoms') {
       return <SymptomsLogger userId={userId} onBack={() => setFeature(null)} />;
+    }
+    if (feature.key === 'actionables') {
+      return <ActionablesLogger userId={userId} onBack={() => setFeature(null)} />;
     }
     return (
       <ComingSoon

@@ -26,7 +26,30 @@ export type VitalKind = VitalData['kind'];
 export type SymptomSeverity = 'mild' | 'moderate' | 'severe';
 export type SymptomData = { kind: 'symptom'; symptom: string; severity: SymptomSeverity; note?: string };
 
-export type CareLogData = VitalData | SymptomData;
+// ─── Actionable payloads ───
+// Two flavours share log_type='actionable', discriminated by `kind`:
+//  • 'actionable_item'  — a user-defined actionable: name, what to do, how often, and a
+//    (placeholder) link to a future doctor event / prescription. There are no built-in items.
+//  • 'actionable_check' — one completion of an item, timestamped (logged_at/logged_date); the
+//    completion model counts checks within the item's current period (honoring `frequency`).
+export type ActionableFrequency = 'daily' | 'twice_daily' | 'weekly' | 'monthly' | 'as_needed';
+// How an actionable is scheduled. Dates are 'yyyy-MM-dd' strings.
+//  • 'repeating' — a recurring cadence, optionally bounded to an active window (from/to).
+//  • 'finite'    — do it a fixed number of times (1 = one-time, 2, 3…), optionally by a deadline.
+export type ActionableSchedule =
+  | { type: 'repeating'; frequency: ActionableFrequency; startDate?: string; endDate?: string }
+  | { type: 'finite'; targetCount: number; deadline?: string };
+export type ActionableItemData = {
+  kind: 'actionable_item';
+  label: string; // the name
+  instruction?: string; // what to do
+  schedule: ActionableSchedule;
+  link?: string; // placeholder — later links to a doctor event / prescription
+};
+export type ActionableCheckData = { kind: 'actionable_check'; itemId: string };
+export type ActionableData = ActionableItemData | ActionableCheckData;
+
+export type CareLogData = VitalData | SymptomData | ActionableData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -122,3 +145,10 @@ export const addVital = (userId: string, payload: VitalData, loggedAt: Date) =>
 export const listSymptoms = () => listLogs<SymptomData>('symptom');
 export const addSymptom = (userId: string, payload: SymptomData, loggedAt: Date) =>
   addLog(userId, 'symptom', payload, loggedAt);
+
+/** Returns both item definitions and completion checks (split in the UI). */
+export const listActionables = () => listLogs<ActionableData>('actionable');
+export const addActionableItem = (userId: string, item: Omit<ActionableItemData, 'kind'>) =>
+  addLog<ActionableData>(userId, 'actionable', { kind: 'actionable_item', ...item }, new Date());
+export const addActionableCheck = (userId: string, itemId: string, on: Date) =>
+  addLog<ActionableData>(userId, 'actionable', { kind: 'actionable_check', itemId }, on);

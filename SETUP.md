@@ -13,12 +13,18 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=...
 
 ## 2. Reset the database & create the schema
 
-In the Supabase dashboard → **SQL Editor → New query**, paste and run
-[`supabase/migrations/0001_reset_and_onboarding.sql`](supabase/migrations/0001_reset_and_onboarding.sql).
+In the Supabase dashboard → **SQL Editor → New query**, paste and run the migrations in
+[`supabase/migrations/`](supabase/migrations/) **in order**:
 
-This **drops the old tables** (pregnancies, profiles, events, etc.) and creates a single
-normalized `profiles` table (one row per user) with Row Level Security so each user only
-sees their own data.
+1. [`0001_reset_and_onboarding.sql`](supabase/migrations/0001_reset_and_onboarding.sql) — drops the
+   old tables (pregnancies, profiles, events, etc.) and creates the normalized `profiles` table
+   (one row per user) with Row Level Security so each user only sees their own data.
+2. [`0002_physical_baseline.sql`](supabase/migrations/0002_physical_baseline.sql) — adds the richer
+   physical-baseline columns (`rh_factor`, `pre_pregnancy_weight`, `height`, `obstetric_history`,
+   `lifestyle_flags`). **Required for onboarding to save** — without it "Create my journey" fails.
+3. [`0003_care_logs.sql`](supabase/migrations/0003_care_logs.sql) — adds the Care tab's logging tables.
+
+Run all three; the app writes columns/tables from every migration.
 
 ## 3. Enable email + password auth
 

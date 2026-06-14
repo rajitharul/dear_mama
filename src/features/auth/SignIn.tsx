@@ -3,6 +3,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { signInWithPassword, signUpWithPassword } from '@/features/auth/api';
+import { errorMessage } from '@/lib/errors';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { useTheme } from '@/theme';
 import { AppText, Button, Card, Field, Illustration, OrganicBackdrop } from '@/ui';
@@ -34,7 +35,7 @@ export function SignIn() {
     } catch (e) {
       Alert.alert(
         mode === 'signin' ? 'Could not sign in' : 'Could not sign up',
-        e instanceof Error ? e.message : 'Please try again.',
+        errorMessage(e),
       );
     } finally {
       setBusy(false);
