@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { File } from 'expo-file-system';
 
 import { loadLogCache, saveLogCache } from '@/care/cache';
 import { supabase } from '@/lib/supabase';
@@ -49,7 +50,35 @@ export type ActionableItemData = {
 export type ActionableCheckData = { kind: 'actionable_check'; itemId: string };
 export type ActionableData = ActionableItemData | ActionableCheckData;
 
-export type CareLogData = VitalData | SymptomData | ActionableData;
+// ─── Test result payloads ───
+// log_type='test_result'. Two flavours, matching the add form's toggle:
+//  • 'test_attachment' — a scan / report: a title, optional note, and one or more files.
+//  • 'test_value'      — a structured lab value (name + value + unit + reference range),
+//    with an optional single supporting file.
+// Files live in Supabase Storage (private bucket 'care-files'); only the object path is
+// stored here. Previews/opens go through short-lived signed URLs (see signedFileUrl).
+export type TestFileKind = 'image' | 'pdf';
+export type TestFileRef = {
+  path: string; // storage object path: `<uid>/<unique>.<ext>`
+  name: string; // original filename, for display
+  mimeType: string;
+  kind: TestFileKind;
+  size?: number;
+};
+export type TestResultData =
+  | { kind: 'test_attachment'; title: string; note?: string; files: TestFileRef[] }
+  | {
+      kind: 'test_value';
+      name: string;
+      value: number;
+      unit?: string;
+      refLow?: number;
+      refHigh?: number;
+      note?: string;
+      file?: TestFileRef;
+    };
+
+export type CareLogData = VitalData | SymptomData | ActionableData | TestResultData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -152,3 +181,62 @@ export const addActionableItem = (userId: string, item: Omit<ActionableItemData,
   addLog<ActionableData>(userId, 'actionable', { kind: 'actionable_item', ...item }, new Date());
 export const addActionableCheck = (userId: string, itemId: string, on: Date) =>
   addLog<ActionableData>(userId, 'actionable', { kind: 'actionable_check', itemId }, on);
+
+// ─── Test results & scans: Storage-backed files ───
+const CARE_BUCKET = 'care-files';
+
+/** A file the user picked (from the camera, photo library, or a document picker). */
+export type PendingFile = { uri: string; name: string; mimeType: string; kind: TestFileKind; size?: number };
+
+const extFromName = (name: string, mimeType: string): string => {
+  const fromName = name.includes('.') ? name.split('.').pop()! : '';
+  if (fromName) return fromName.toLowerCase();
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('image/')) return mimeType.slice('image/'.length);
+  return 'bin';
+};
+
+/** Read a picked file's bytes and upload them to the private care-files bucket. */
+export async function uploadCareFile(userId: string, file: PendingFile): Promise<TestFileRef> {
+  const bytes = await new File(file.uri).bytes(); // local read, no network
+  const path = `${userId}/${Date.now()}-${Math.round(Math.random() * 1e9)}.${extFromName(file.name, file.mimeType)}`;
+  const { error } = await supabase.storage
+    .from(CARE_BUCKET)
+    .upload(path, bytes, { contentType: file.mimeType, upsert: false });
+  if (error) throw toError(error);
+  return { path, name: file.name, mimeType: file.mimeType, kind: file.kind, size: file.size };
+}
+
+/**
+ * A short-lived signed URL for a private object, for previewing/opening. Bounded so a
+ * stalled request never hangs a thumbnail; returns null on failure (UI shows a placeholder).
+ */
+export async function signedFileUrl(path: string, expiresIn = 3600): Promise<string | null> {
+  try {
+    const result = await Promise.race([
+      supabase.storage.from(CARE_BUCKET).createSignedUrl(path, expiresIn),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+    ]);
+    if (result.error) return null;
+    return result.data?.signedUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort removal of objects from the care-files bucket (bounded). */
+export async function removeCareFiles(paths: string[]): Promise<void> {
+  if (!paths.length) return;
+  try {
+    await Promise.race([
+      supabase.storage.from(CARE_BUCKET).remove(paths),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+    ]);
+  } catch {
+    // Leaving an orphaned object behind is harmless (owner-scoped); don't block the delete.
+  }
+}
+
+export const listTestResults = () => listLogs<TestResultData>('test_result');
+export const addTestResult = (userId: string, data: TestResultData, loggedAt: Date) =>
+  addLog<TestResultData>(userId, 'test_result', data, loggedAt);

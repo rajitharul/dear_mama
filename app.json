@@ -35,7 +35,14 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DearMama needs access to your photos so you can save scans and test reports.",
+          "cameraPermission": "DearMama needs access to your camera so you can snap a photo of a scan or report."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

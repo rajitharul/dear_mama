@@ -8,6 +8,7 @@ import { ActionablesLogger } from '@/care/physical/ActionablesLogger';
 import { ComingSoon } from '@/care/ComingSoon';
 import { PhysicalBaselineEdit } from '@/care/physical/PhysicalBaselineEdit';
 import { SymptomsLogger } from '@/care/physical/SymptomsLogger';
+import { TestResultsLogger } from '@/care/physical/TestResultsLogger';
 import { VitalsLogger } from '@/care/physical/VitalsLogger';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
@@ -82,6 +83,9 @@ export function PhysicalCare({
     }
     if (feature.key === 'actionables') {
       return <ActionablesLogger userId={userId} onBack={() => setFeature(null)} />;
+    }
+    if (feature.key === 'tests') {
+      return <TestResultsLogger userId={userId} onBack={() => setFeature(null)} />;
     }
     return (
       <ComingSoon

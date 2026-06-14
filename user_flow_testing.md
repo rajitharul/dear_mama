@@ -189,3 +189,74 @@ Each actionable has a **name**, optional **what to do**, a **schedule**, and a (
 - ✅ "Could not update" alert and the toggle reverts (no hang). *(No offline write queue yet.)*
 3. Disable Airplane mode, reopen.
 - ✅ List refreshes; pill gone.
+
+---
+
+## Care · Physical · Test results & scans
+
+**Prerequisite:** the `care_logs` table exists (migration `0003`) **and** the `care-files` Storage
+bucket + policies exist (migration `0004_care_files_storage.sql` run in the SQL editor). Results reuse
+`care_logs` with `log_type = 'test_result'`; files live in the private `care-files` bucket
+(`<uid>/…`). A result is either a **Scan / report** (title + note + one or more files) or a **Lab
+value** (name + value + unit + reference range, with an optional single file).
+
+### Flow 1 — Navigate / empty state
+1. Care → **Physical care** → **Test results & scans** card.
+- ✅ "No results yet" empty state + an "Add a result" button.
+
+### Flow 2 — Add a scan/report (photo)
+1. Add a result → **Scan / report** selected → Title "20-week anomaly scan".
+2. **Take photo** (grant camera) or **Choose photo** (grant photo access) → the image appears as a
+   removable 72×72 thumbnail.
+3. Set the **Date** (defaults to today; no future), optional note → **Save result**.
+- ✅ Uploads the file to `care-files/<uid>/…`, writes the `care_logs` row, returns to the list.
+- ✅ Card shows the title + date; the thumbnail renders (loaded via a signed URL). Tapping it opens
+  the full image in the in-app browser.
+
+### Flow 3 — Add a scan/report (PDF + multiple files)
+1. Add → **Scan / report** → **Attach PDF** → pick a PDF; add a second photo too.
+- ✅ Both appear as removable chips/thumbnails (up to 8). Tapping the ✕ removes one.
+2. Save.
+- ✅ Card shows a tappable PDF chip (filename) + the image thumbnail. Tapping the PDF chip opens it
+  in the browser (brief spinner while the signed URL is fetched).
+
+### Flow 4 — Add a lab value (with reference range)
+1. Add → **Lab value** → Test name "Hemoglobin", Value `11.2`, Unit "g/dL", Ref low `11`, Ref high `15`.
+2. Save (no file).
+- ✅ Card shows `11.2 g/dL`, a green **In range** pill, and `Ref 11–15`.
+3. Add another with Value `9.0`, same range.
+- ✅ Red **Below range** pill. A value above Ref high → **Above range** (red).
+
+### Flow 5 — Lab value with an optional file
+1. Add → **Lab value**, fill the value, then attach one photo/PDF.
+- ✅ "A lab value keeps one attachment — adding another replaces it." Picking a second file replaces
+  the first. Saved card shows the single file.
+
+### Flow 6 — Toggle behaviour & validation
+1. In the add form, switch **Scan / report ↔ Lab value**.
+- ✅ Fields swap; switching to Lab value trims attachments to one.
+2. Save a **Scan / report** with a blank title → ✅ "Please give it a title". With a title but no
+   file → ✅ "Attach at least one photo or PDF".
+3. Save a **Lab value** with a blank name or non-numeric value → ✅ inline "Please name the test" /
+   "Enter a number"; nothing saves.
+
+### Flow 7 — Persistence
+1. Switch tabs / reopen the app.
+- ✅ Results persist (DB source of truth, cache fallback). Thumbnails re-fetch their signed URLs.
+2. Confirm in Supabase: `care_logs` rows (`log_type='test_result'`, `data.kind` =
+   `test_attachment` | `test_value`) and objects under **Storage → care-files → `<uid>/`**.
+
+### Flow 8 — Delete
+1. Tap the trash icon → confirm → **Delete**.
+- ✅ Row removed from the list and DB; the attached file(s) are removed from Storage. Stays gone
+  after reload.
+
+### Flow 9 — Offline / anti-hang
+1. Airplane mode → reopen the screen.
+- ✅ List renders from cache with a "Showing saved results — couldn’t refresh" pill; image
+  thumbnails show a placeholder icon (signed URLs can't load) — no spinner hang.
+2. Try to save while offline.
+- ✅ Clear "Could not save" alert (the upload fails fast — bounded); no hang. *(No offline write
+  queue yet.)*
+3. Disable Airplane mode, reopen.
+- ✅ List refreshes; thumbnails load; pill gone.

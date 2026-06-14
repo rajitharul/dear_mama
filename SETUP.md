@@ -23,8 +23,11 @@ In the Supabase dashboard → **SQL Editor → New query**, paste and run the mi
    physical-baseline columns (`rh_factor`, `pre_pregnancy_weight`, `height`, `obstetric_history`,
    `lifestyle_flags`). **Required for onboarding to save** — without it "Create my journey" fails.
 3. [`0003_care_logs.sql`](supabase/migrations/0003_care_logs.sql) — adds the Care tab's logging tables.
+4. [`0004_care_files_storage.sql`](supabase/migrations/0004_care_files_storage.sql) — creates the
+   private `care-files` Storage bucket (with owner-scoped policies) for Test results & scans —
+   images and PDFs. **Required before the Test results logger can save a file.**
 
-Run all three; the app writes columns/tables from every migration.
+Run all four; the app writes columns/tables from every migration.
 
 ## 3. Enable email + password auth
 
