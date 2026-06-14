@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ComingSoon } from '@/care/ComingSoon';
 import { PhysicalBaselineEdit } from '@/care/physical/PhysicalBaselineEdit';
+import { VitalsLogger } from '@/care/physical/VitalsLogger';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
 import { AppText, Button, calmRise, Card, OrganicBackdrop } from '@/ui';
@@ -52,10 +53,12 @@ const FEATURES: Feature[] = [
 /** Physical Care hub: the captured baseline + the four logging features. */
 export function PhysicalCare({
   data,
+  userId,
   onSave,
   onBack,
 }: {
   data: OnboardingData;
+  userId: string;
   onSave: (d: OnboardingData) => Promise<void>;
   onBack: () => void;
 }) {
@@ -69,6 +72,9 @@ export function PhysicalCare({
   }
 
   if (feature) {
+    if (feature.key === 'vitals') {
+      return <VitalsLogger userId={userId} onBack={() => setFeature(null)} />;
+    }
     return (
       <ComingSoon
         title={feature.title}

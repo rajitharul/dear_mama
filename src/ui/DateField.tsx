@@ -15,6 +15,7 @@ export function DateField({
   minimumDate,
   maximumDate,
   placeholder = 'Select a date',
+  mode = 'date',
 }: {
   label?: string;
   value: Date | null;
@@ -22,14 +23,35 @@ export function DateField({
   minimumDate?: Date;
   maximumDate?: Date;
   placeholder?: string;
+  mode?: 'date' | 'datetime';
 }) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
   const [temp, setTemp] = useState<Date>(value ?? new Date());
+  // Android can't show a combined date+time picker, so for `datetime` we chain
+  // a date step into a time step.
+  const [androidStep, setAndroidStep] = useState<'date' | 'time'>('date');
+
+  const displayFormat = mode === 'datetime' ? 'EEE, d MMM yyyy · h:mm a' : 'EEE, d MMM yyyy';
+
+  function openPicker() {
+    setTemp(value ?? new Date());
+    setAndroidStep('date');
+    setOpen(true);
+  }
 
   function handleAndroidChange(event: DateTimePickerEvent, selected?: Date) {
+    if (event.type !== 'set' || !selected) {
+      setOpen(false);
+      return;
+    }
+    if (mode === 'datetime' && androidStep === 'date') {
+      setTemp(selected); // keep the chosen date, then ask for the time
+      setAndroidStep('time');
+      return;
+    }
     setOpen(false);
-    if (event.type === 'set' && selected) onChange(selected);
+    onChange(selected);
   }
 
   return (
@@ -37,11 +59,8 @@ export function DateField({
       {label ? <AppText variant="label">{label}</AppText> : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label ?? 'Select a date'}
-        onPress={() => {
-          setTemp(value ?? new Date());
-          setOpen(true);
-        }}
+        accessibilityLabel={label ?? placeholder}
+        onPress={openPicker}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -54,7 +73,7 @@ export function DateField({
           minHeight: 50,
         }}>
         <AppText color={value ? t.colors.text : t.colors.textTertiary}>
-          {value ? format(value, 'EEE, d MMM yyyy') : placeholder}
+          {value ? format(value, displayFormat) : placeholder}
         </AppText>
         <Ionicons name="calendar-outline" size={18} color={t.colors.accent} />
       </Pressable>
@@ -62,10 +81,10 @@ export function DateField({
       {open && Platform.OS === 'android' ? (
         <DateTimePicker
           value={temp}
-          mode="date"
+          mode={mode === 'datetime' ? androidStep : 'date'}
           display="default"
-          minimumDate={minimumDate}
-          maximumDate={maximumDate}
+          minimumDate={androidStep === 'date' ? minimumDate : undefined}
+          maximumDate={androidStep === 'date' ? maximumDate : undefined}
           onChange={handleAndroidChange}
         />
       ) : null}
@@ -83,7 +102,7 @@ export function DateField({
               }}>
               <DateTimePicker
                 value={temp}
-                mode="date"
+                mode={mode}
                 display="spinner"
                 minimumDate={minimumDate}
                 maximumDate={maximumDate}

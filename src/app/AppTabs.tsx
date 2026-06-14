@@ -28,11 +28,13 @@ const TABS: {
  */
 export function AppTabs({
   data,
+  userId,
   onEdit,
   onSignOut,
   onSaveProfile,
 }: {
   data: OnboardingData;
+  userId: string;
   onEdit: () => void;
   onSignOut: () => void;
   onSaveProfile: (d: OnboardingData) => Promise<void>;
@@ -47,7 +49,7 @@ export function AppTabs({
         {tab === 'home' ? (
           <Home data={data} onEdit={onEdit} onSignOut={onSignOut} />
         ) : (
-          <CareTab data={data} onSave={onSaveProfile} />
+          <CareTab data={data} userId={userId} onSave={onSaveProfile} />
         )}
       </View>
 

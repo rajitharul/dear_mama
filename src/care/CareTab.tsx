@@ -44,9 +44,11 @@ const PILLARS: {
 /** The Care tab: three care pillars. Only Physical is active for now. */
 export function CareTab({
   data,
+  userId,
   onSave,
 }: {
   data: OnboardingData;
+  userId: string;
   onSave: (d: OnboardingData) => Promise<void>;
 }) {
   const t = useTheme();
@@ -54,7 +56,7 @@ export function CareTab({
   const [view, setView] = useState<'landing' | 'physical'>('landing');
 
   if (view === 'physical') {
-    return <PhysicalCare data={data} onSave={onSave} onBack={() => setView('landing')} />;
+    return <PhysicalCare data={data} userId={userId} onSave={onSave} onBack={() => setView('landing')} />;
   }
 
   const entering = (delay: number) => (reduce ? undefined : calmRise(delay));

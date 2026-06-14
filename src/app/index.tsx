@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { AppTabs } from '@/app/AppTabs';
+import { clearCareCache } from '@/care/cache';
 import { signOut } from '@/features/auth/api';
 import { SignIn } from '@/features/auth/SignIn';
 import { useSession } from '@/features/auth/session';
@@ -58,6 +59,7 @@ function Authed({ userId }: { userId: string }) {
 
   async function handleSignOut() {
     await clearCache();
+    await clearCareCache();
     await signOut();
   }
 
@@ -91,6 +93,7 @@ function Authed({ userId }: { userId: string }) {
   return (
     <AppTabs
       data={profile}
+      userId={userId}
       onEdit={() => setEditing(true)}
       onSignOut={handleSignOut}
       onSaveProfile={saveProfileDirect}
