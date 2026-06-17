@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActionablesLogger } from '@/care/physical/ActionablesLogger';
 import { ComingSoon } from '@/care/ComingSoon';
 import { PhysicalBaselineEdit } from '@/care/physical/PhysicalBaselineEdit';
+import { RestLogger } from '@/care/physical/RestLogger';
 import { SymptomsLogger } from '@/care/physical/SymptomsLogger';
 import { TestResultsLogger } from '@/care/physical/TestResultsLogger';
 import { VitalsLogger } from '@/care/physical/VitalsLogger';
@@ -51,6 +52,13 @@ const FEATURES: Feature[] = [
     icon: 'medkit-outline',
     blurb: 'Note symptoms like nausea, morning sickness, aches & pains, discharge or anything else you notice — ready to share with your care team.',
   },
+  {
+    key: 'rest',
+    title: 'Rest & sleep',
+    description: 'Hours slept and how rested you feel.',
+    icon: 'moon-outline',
+    blurb: 'Log how long you slept and how rested you feel, and watch the gentle rhythm of your rest across pregnancy.',
+  },
 ];
 
 /** Physical Care hub: the captured baseline + the four logging features. */
@@ -86,6 +94,9 @@ export function PhysicalCare({
     }
     if (feature.key === 'tests') {
       return <TestResultsLogger userId={userId} onBack={() => setFeature(null)} />;
+    }
+    if (feature.key === 'rest') {
+      return <RestLogger userId={userId} onBack={() => setFeature(null)} />;
     }
     return (
       <ComingSoon

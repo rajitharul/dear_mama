@@ -27,13 +27,6 @@ const FEATURES: Feature[] = [
     blurb: 'Take a quiet moment to note how you’re feeling, and look back gently over time.',
   },
   {
-    key: 'rest',
-    title: 'Rest & sleep',
-    description: 'Hours slept and how rested you feel.',
-    icon: 'moon-outline',
-    blurb: 'Log how you slept and how rested you feel, so you can see the rhythm of your rest across pregnancy.',
-  },
-  {
     key: 'note_to_baby',
     title: 'Note to the baby',
     description: 'A small note to your baby, day by day.',

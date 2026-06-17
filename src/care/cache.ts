@@ -5,7 +5,7 @@ import type { CareLog, CareLogData, LogType } from '@/care/api';
 // Local mirror of the user's Care logs, one bucket per log type — used for instant
 // render and as an offline fallback when Supabase is unreachable. Supabase is the
 // source of truth.
-const ALL_TYPES: LogType[] = ['vital', 'symptom', 'actionable', 'test_result', 'mood', 'baby_note'];
+const ALL_TYPES: LogType[] = ['vital', 'symptom', 'actionable', 'test_result', 'mood', 'baby_note', 'rest'];
 const key = (type: LogType) => `dearmama.carelogs.${type}.v1`;
 
 export async function loadLogCache<T extends CareLogData>(type: LogType): Promise<CareLog<T>[]> {

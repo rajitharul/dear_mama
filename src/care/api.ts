@@ -4,7 +4,7 @@ import { File } from 'expo-file-system';
 import { loadLogCache, saveLogCache } from '@/care/cache';
 import { supabase } from '@/lib/supabase';
 
-export type LogType = 'vital' | 'symptom' | 'actionable' | 'test_result' | 'mood' | 'baby_note';
+export type LogType = 'vital' | 'symptom' | 'actionable' | 'test_result' | 'mood' | 'baby_note' | 'rest';
 
 // ─── Vital payloads (discriminated by `kind`, stored in `care_logs.data` jsonb) ───
 export type WeightUnit = 'kg' | 'lb';
@@ -38,6 +38,14 @@ export type MoodData = { kind: 'mood'; rating: MoodRating; note?: string };
 // A small free-text note to the baby, day by day — a keepsake. `logged_at` is the
 // moment it's written (the UI lets you pick the day).
 export type BabyNoteData = { kind: 'baby_note'; text: string };
+
+// ─── Rest & sleep payload (Physical care) ───
+// One night's rest: hours slept (decimal), a sleep-quality rating, and an optional note.
+// FUTURE: where available, `hours` (and possibly quality) can be auto-imported from
+// Apple Health (HealthKit) / Google Health (Health Connect) instead of manual entry —
+// keep this payload shape source-agnostic so synced and hand-entered nights look alike.
+export type RestQuality = 'restless' | 'okay' | 'restful';
+export type RestData = { kind: 'rest'; hours: number; quality: RestQuality; note?: string };
 
 // ─── Actionable payloads ───
 // Two flavours share log_type='actionable', discriminated by `kind`:
@@ -90,7 +98,14 @@ export type TestResultData =
       file?: TestFileRef;
     };
 
-export type CareLogData = VitalData | SymptomData | ActionableData | TestResultData | MoodData | BabyNoteData;
+export type CareLogData =
+  | VitalData
+  | SymptomData
+  | ActionableData
+  | TestResultData
+  | MoodData
+  | BabyNoteData
+  | RestData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -194,6 +209,10 @@ export const addMood = (userId: string, payload: MoodData, loggedAt: Date) =>
 export const listBabyNotes = () => listLogs<BabyNoteData>('baby_note');
 export const addBabyNote = (userId: string, payload: BabyNoteData, loggedAt: Date) =>
   addLog(userId, 'baby_note', payload, loggedAt);
+
+export const listRest = () => listLogs<RestData>('rest');
+export const addRest = (userId: string, payload: RestData, loggedAt: Date) =>
+  addLog(userId, 'rest', payload, loggedAt);
 
 /** Returns both item definitions and completion checks (split in the UI). */
 export const listActionables = () => listLogs<ActionableData>('actionable');
