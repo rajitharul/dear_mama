@@ -4,7 +4,16 @@ import { File } from 'expo-file-system';
 import { loadLogCache, saveLogCache } from '@/care/cache';
 import { supabase } from '@/lib/supabase';
 
-export type LogType = 'vital' | 'symptom' | 'actionable' | 'test_result' | 'mood' | 'baby_note' | 'rest';
+export type LogType =
+  | 'vital'
+  | 'symptom'
+  | 'actionable'
+  | 'test_result'
+  | 'mood'
+  | 'baby_note'
+  | 'rest'
+  | 'kick'
+  | 'movement';
 
 // ─── Vital payloads (discriminated by `kind`, stored in `care_logs.data` jsonb) ───
 export type WeightUnit = 'kg' | 'lb';
@@ -46,6 +55,17 @@ export type BabyNoteData = { kind: 'baby_note'; text: string };
 // keep this payload shape source-agnostic so synced and hand-entered nights look alike.
 export type RestQuality = 'restless' | 'okay' | 'restful';
 export type RestData = { kind: 'rest'; hours: number; quality: RestQuality; note?: string };
+
+// ─── Fetal: kicks & movements (Fetal care) ───
+// Clinically a "kick" (a sharp, countable jab) and a "movement" (a roll, flutter, hiccup,
+// turn…) are different, and they're modelled differently:
+//  • 'kick'     — a counting session: how many kicks were felt, how long it took (minutes),
+//    and an optional note. `logged_at` is the session start. The ~10 guideline is a gentle
+//    goal; the count is open-ended.
+//  • 'movement' — a single observation: what kind of movement (a free-text label chosen from
+//    a list or typed as "other") plus an optional note. Not counted, no session.
+export type KickData = { kind: 'kick'; count: number; durationMin: number; note?: string };
+export type MovementData = { kind: 'movement'; movement: string; note?: string };
 
 // ─── Actionable payloads ───
 // Two flavours share log_type='actionable', discriminated by `kind`:
@@ -105,7 +125,9 @@ export type CareLogData =
   | TestResultData
   | MoodData
   | BabyNoteData
-  | RestData;
+  | RestData
+  | KickData
+  | MovementData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -213,6 +235,14 @@ export const addBabyNote = (userId: string, payload: BabyNoteData, loggedAt: Dat
 export const listRest = () => listLogs<RestData>('rest');
 export const addRest = (userId: string, payload: RestData, loggedAt: Date) =>
   addLog(userId, 'rest', payload, loggedAt);
+
+export const listKicks = () => listLogs<KickData>('kick');
+export const addKick = (userId: string, payload: KickData, loggedAt: Date) =>
+  addLog(userId, 'kick', payload, loggedAt);
+
+export const listMovements = () => listLogs<MovementData>('movement');
+export const addMovement = (userId: string, payload: MovementData, loggedAt: Date) =>
+  addLog(userId, 'movement', payload, loggedAt);
 
 /** Returns both item definitions and completion checks (split in the UI). */
 export const listActionables = () => listLogs<ActionableData>('actionable');

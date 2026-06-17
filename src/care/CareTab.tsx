@@ -5,6 +5,7 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmotionalCare } from '@/care/emotional/EmotionalCare';
+import { FetalCare } from '@/care/fetal/FetalCare';
 import { PhysicalCare } from '@/care/physical/PhysicalCare';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
@@ -36,9 +37,9 @@ const PILLARS: {
   {
     key: 'fetal',
     title: 'Fetal care',
-    description: 'Baby’s growth, movements, and milestones.',
+    description: 'Count baby’s kicks and note their movements.',
     icon: 'pulse-outline',
-    ready: false,
+    ready: true,
   },
 ];
 
@@ -61,6 +62,9 @@ export function CareTab({
   }
   if (view === 'emotional') {
     return <EmotionalCare userId={userId} onBack={() => setView('landing')} />;
+  }
+  if (view === 'fetal') {
+    return <FetalCare userId={userId} onBack={() => setView('landing')} />;
   }
 
   const entering = (delay: number) => (reduce ? undefined : calmRise(delay));
