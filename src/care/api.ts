@@ -4,7 +4,7 @@ import { File } from 'expo-file-system';
 import { loadLogCache, saveLogCache } from '@/care/cache';
 import { supabase } from '@/lib/supabase';
 
-export type LogType = 'vital' | 'symptom' | 'actionable' | 'test_result';
+export type LogType = 'vital' | 'symptom' | 'actionable' | 'test_result' | 'mood' | 'baby_note';
 
 // ─── Vital payloads (discriminated by `kind`, stored in `care_logs.data` jsonb) ───
 export type WeightUnit = 'kg' | 'lb';
@@ -26,6 +26,18 @@ export type VitalKind = VitalData['kind'];
 // ─── Symptom payload ───
 export type SymptomSeverity = 'mild' | 'moderate' | 'severe';
 export type SymptomData = { kind: 'symptom'; symptom: string; severity: SymptomSeverity; note?: string };
+
+// ─── Mood payload (Emotional care) ───
+// A check-in: a single mood pick on a 1–5 scale (1 = very low … 5 = very good),
+// each presented with an emoji, plus an optional free-text note. A future iteration
+// will attach an AI-powered supportive message to the check-in.
+export type MoodRating = 1 | 2 | 3 | 4 | 5;
+export type MoodData = { kind: 'mood'; rating: MoodRating; note?: string };
+
+// ─── Note to the baby payload (Emotional care) ───
+// A small free-text note to the baby, day by day — a keepsake. `logged_at` is the
+// moment it's written (the UI lets you pick the day).
+export type BabyNoteData = { kind: 'baby_note'; text: string };
 
 // ─── Actionable payloads ───
 // Two flavours share log_type='actionable', discriminated by `kind`:
@@ -78,7 +90,7 @@ export type TestResultData =
       file?: TestFileRef;
     };
 
-export type CareLogData = VitalData | SymptomData | ActionableData | TestResultData;
+export type CareLogData = VitalData | SymptomData | ActionableData | TestResultData | MoodData | BabyNoteData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -174,6 +186,14 @@ export const addVital = (userId: string, payload: VitalData, loggedAt: Date) =>
 export const listSymptoms = () => listLogs<SymptomData>('symptom');
 export const addSymptom = (userId: string, payload: SymptomData, loggedAt: Date) =>
   addLog(userId, 'symptom', payload, loggedAt);
+
+export const listMoods = () => listLogs<MoodData>('mood');
+export const addMood = (userId: string, payload: MoodData, loggedAt: Date) =>
+  addLog(userId, 'mood', payload, loggedAt);
+
+export const listBabyNotes = () => listLogs<BabyNoteData>('baby_note');
+export const addBabyNote = (userId: string, payload: BabyNoteData, loggedAt: Date) =>
+  addLog(userId, 'baby_note', payload, loggedAt);
 
 /** Returns both item definitions and completion checks (split in the UI). */
 export const listActionables = () => listLogs<ActionableData>('actionable');

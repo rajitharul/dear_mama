@@ -4,6 +4,7 @@ import { ScrollView, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EmotionalCare } from '@/care/emotional/EmotionalCare';
 import { PhysicalCare } from '@/care/physical/PhysicalCare';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
@@ -30,7 +31,7 @@ const PILLARS: {
     title: 'Emotional care',
     description: 'Mood, rest, and how you’re feeling week to week.',
     icon: 'happy-outline',
-    ready: false,
+    ready: true,
   },
   {
     key: 'fetal',
@@ -53,10 +54,13 @@ export function CareTab({
 }) {
   const t = useTheme();
   const reduce = useReducedMotion();
-  const [view, setView] = useState<'landing' | 'physical'>('landing');
+  const [view, setView] = useState<'landing' | Pillar>('landing');
 
   if (view === 'physical') {
     return <PhysicalCare data={data} userId={userId} onSave={onSave} onBack={() => setView('landing')} />;
+  }
+  if (view === 'emotional') {
+    return <EmotionalCare userId={userId} onBack={() => setView('landing')} />;
   }
 
   const entering = (delay: number) => (reduce ? undefined : calmRise(delay));
@@ -78,7 +82,7 @@ export function CareTab({
         {PILLARS.map((p, i) => (
           <Animated.View key={p.key} entering={entering(90 + i * 80)}>
             <Card
-              onPress={p.ready ? () => setView('physical') : undefined}
+              onPress={p.ready ? () => setView(p.key) : undefined}
               style={{ gap: t.spacing.sm, opacity: p.ready ? 1 : 0.7 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
                 <View
