@@ -13,7 +13,8 @@ export type LogType =
   | 'baby_note'
   | 'rest'
   | 'kick'
-  | 'movement';
+  | 'movement'
+  | 'visit';
 
 // ─── Vital payloads (discriminated by `kind`, stored in `care_logs.data` jsonb) ───
 export type WeightUnit = 'kg' | 'lb';
@@ -66,6 +67,24 @@ export type RestData = { kind: 'rest'; hours: number; quality: RestQuality; note
 //    a list or typed as "other") plus an optional note. Not counted, no session.
 export type KickData = { kind: 'kick'; count: number; durationMin: number; note?: string };
 export type MovementData = { kind: 'movement'; movement: string; note?: string };
+
+// ─── Visits (antenatal appointments) ───
+// One self-contained record per visit. `logged_at` is the visit's date & time; a future
+// `logged_at` means an *upcoming* appointment (the status is derived from the date, not
+// stored). For an upcoming visit only place/doctor/date + prerequisites are filled in;
+// the doctor's notes, prescription, tests and routines are added later by editing it once
+// the visit has happened. Each prescription/test/routine line is just recorded free text.
+export type VisitData = {
+  kind: 'visit';
+  place: string; // clinic / hospital / doctor's office
+  doctor?: string; // who you saw
+  notes?: string; // doctor's notes from this visit
+  prerequisites?: string; // things to prepare/bring for the next visit
+  medicines: string[]; // prescription — medicine (e.g. "Iron 65mg — daily")
+  supplements: string[]; // prescription — supplements (e.g. "Folic acid — daily")
+  tests: string[]; // tests / scans ordered (e.g. "Anomaly scan")
+  routines: string[]; // routines / actionables (e.g. "30 min walk daily")
+};
 
 // ─── Actionable payloads ───
 // Two flavours share log_type='actionable', discriminated by `kind`:
@@ -127,7 +146,8 @@ export type CareLogData =
   | BabyNoteData
   | RestData
   | KickData
-  | MovementData;
+  | MovementData
+  | VisitData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -200,6 +220,34 @@ async function addLog<T extends CareLogData>(
   return log;
 }
 
+/** Update a log's payload + timestamp. Refreshes the offline cache for its type on success. */
+export async function updateLog<T extends CareLogData>(
+  id: string,
+  logType: LogType,
+  payload: T,
+  loggedAt: Date,
+): Promise<CareLog<T>> {
+  const { data, error } = await supabase
+    .from('care_logs')
+    .update({
+      data: payload,
+      logged_at: loggedAt.toISOString(),
+      logged_date: format(loggedAt, 'yyyy-MM-dd'),
+    })
+    .eq('id', id)
+    .select()
+    .abortSignal(AbortSignal.timeout(10000))
+    .single();
+  if (error) throw toError(error);
+  const log = fromRow(data as CareLogRow<T>);
+  const cached = await loadLogCache<T>(logType);
+  saveLogCache(
+    logType,
+    cached.map((l) => (l.id === id ? log : l)),
+  );
+  return log;
+}
+
 /** Delete a log by id. Updates the offline cache for its type on success. */
 export async function deleteLog(id: string, logType: LogType): Promise<void> {
   const { error } = await supabase
@@ -243,6 +291,12 @@ export const addKick = (userId: string, payload: KickData, loggedAt: Date) =>
 export const listMovements = () => listLogs<MovementData>('movement');
 export const addMovement = (userId: string, payload: MovementData, loggedAt: Date) =>
   addLog(userId, 'movement', payload, loggedAt);
+
+export const listVisits = () => listLogs<VisitData>('visit');
+export const addVisit = (userId: string, payload: VisitData, loggedAt: Date) =>
+  addLog(userId, 'visit', payload, loggedAt);
+export const updateVisit = (id: string, payload: VisitData, loggedAt: Date) =>
+  updateLog(id, 'visit', payload, loggedAt);
 
 /** Returns both item definitions and completion checks (split in the UI). */
 export const listActionables = () => listLogs<ActionableData>('actionable');

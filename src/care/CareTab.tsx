@@ -7,11 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmotionalCare } from '@/care/emotional/EmotionalCare';
 import { FetalCare } from '@/care/fetal/FetalCare';
 import { PhysicalCare } from '@/care/physical/PhysicalCare';
+import { VisitsLogger } from '@/care/visits/VisitsLogger';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
 import { AppText, calmRise, Card, OrganicBackdrop, Pill } from '@/ui';
 
-type Pillar = 'physical' | 'emotional' | 'fetal';
+type Pillar = 'physical' | 'emotional' | 'fetal' | 'visits';
 
 const PILLARS: {
   key: Pillar;
@@ -41,9 +42,16 @@ const PILLARS: {
     icon: 'pulse-outline',
     ready: true,
   },
+  {
+    key: 'visits',
+    title: 'Visits',
+    description: 'Record appointments, prescriptions, and what to do next.',
+    icon: 'medical-outline',
+    ready: true,
+  },
 ];
 
-/** The Care tab: three care pillars. Only Physical is active for now. */
+/** The Care tab: four care pillars — Physical, Emotional, Fetal, and Visits. */
 export function CareTab({
   data,
   userId,
@@ -65,6 +73,9 @@ export function CareTab({
   }
   if (view === 'fetal') {
     return <FetalCare userId={userId} onBack={() => setView('landing')} />;
+  }
+  if (view === 'visits') {
+    return <VisitsLogger userId={userId} onBack={() => setView('landing')} />;
   }
 
   const entering = (delay: number) => (reduce ? undefined : calmRise(delay));

@@ -15,6 +15,7 @@ const ALL_TYPES: LogType[] = [
   'rest',
   'kick',
   'movement',
+  'visit',
 ];
 const key = (type: LogType) => `dearmama.carelogs.${type}.v1`;
 
