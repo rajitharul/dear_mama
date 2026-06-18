@@ -7,17 +7,9 @@ import { babyCountLabel } from '@/onboarding/labels';
 import type { OnboardingData } from '@/onboarding/types';
 import { eddFromLmp, formatGestationalAge, gestationalAge } from '@/pregnancy/weekMath';
 import { useTheme } from '@/theme';
-import { AppText, Button, Card, OrganicBackdrop, Pill } from '@/ui';
+import { AppText, Card, OrganicBackdrop, Pill } from '@/ui';
 
-export function Home({
-  data,
-  onEdit,
-  onSignOut,
-}: {
-  data: OnboardingData;
-  onEdit: () => void;
-  onSignOut: () => void;
-}) {
+export function Home({ data }: { data: OnboardingData }) {
   const t = useTheme();
   const chosen = data.date ? new Date(data.date) : null;
   const edd = chosen ? (data.dateMode === 'edd' ? chosen : eddFromLmp(chosen)) : null;
@@ -74,9 +66,6 @@ export function Home({
           ) : null}
           {data.careName ? <Detail icon="medical-outline" text={`${data.careRole.toUpperCase()}: ${data.careName}`} /> : null}
         </Card>
-
-        <Button label="Edit details" variant="secondary" icon="create-outline" onPress={onEdit} />
-        <Button label="Sign out" variant="ghost" icon="log-out-outline" onPress={onSignOut} />
       </ScrollView>
     </SafeAreaView>
   );

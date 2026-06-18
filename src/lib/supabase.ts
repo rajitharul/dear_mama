@@ -28,3 +28,22 @@ if (Platform.OS !== 'web') {
     else supabase.auth.stopAutoRefresh();
   });
 }
+
+/**
+ * A throwaway client that never persists or refreshes a session. Used to provision a partner
+ * account (`signUp`) from the mother's app without touching her persisted session or firing the
+ * main client's `onAuthStateChange`. Discard it after use.
+ */
+export function createEphemeralClient() {
+  return createClient(
+    isSupabaseConfigured ? SUPABASE_URL : 'https://placeholder.supabase.co',
+    isSupabaseConfigured ? SUPABASE_ANON_KEY : 'placeholder-key',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    },
+  );
+}

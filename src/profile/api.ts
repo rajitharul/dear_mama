@@ -100,13 +100,15 @@ function fromRow(r: ProfileRow): OnboardingData {
   };
 }
 
-/** Fetch the signed-in user's profile (null if they haven't onboarded). Bounded by a timeout. */
-export async function loadProfile(): Promise<OnboardingData | null> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .abortSignal(AbortSignal.timeout(8000))
-    .maybeSingle();
+/**
+ * Fetch a profile (null if it doesn't exist). With no argument, fetches the signed-in user's own
+ * row (RLS scopes it). Pass `ownerId` to fetch a specific owner's row — used by a partner to read
+ * the mother's profile (allowed via the broadened RLS). Bounded by a timeout.
+ */
+export async function loadProfile(ownerId?: string): Promise<OnboardingData | null> {
+  let query = supabase.from('profiles').select('*');
+  if (ownerId) query = query.eq('user_id', ownerId);
+  const { data, error } = await query.abortSignal(AbortSignal.timeout(8000)).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const mapped = fromRow(data as ProfileRow);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { AppTabs } from '@/app/AppTabs';
+import { PartnerApp } from '@/app/PartnerApp';
 import { clearCareCache } from '@/care/cache';
 import { signOut } from '@/features/auth/api';
 import { SignIn } from '@/features/auth/SignIn';
@@ -18,7 +19,23 @@ export default function Index() {
 
   if (initializing) return <Splash />;
   if (!session) return <SignIn />;
+
+  // Partners are provisioned by a mother and tagged in auth metadata. They skip onboarding
+  // entirely and see only her Care tab (a partner has no profile of their own).
+  const meta = session.user.user_metadata as { role?: string; mother_id?: string } | undefined;
+  if (meta?.role === 'partner' && meta.mother_id) {
+    return <PartnerAuthed motherId={meta.mother_id} />;
+  }
+
   return <Authed userId={session.user.id} />;
+}
+
+function PartnerAuthed({ motherId }: { motherId: string }) {
+  async function handleSignOut() {
+    await clearCareCache();
+    await signOut();
+  }
+  return <PartnerApp motherId={motherId} onSignOut={handleSignOut} />;
 }
 
 function Authed({ userId }: { userId: string }) {

@@ -51,19 +51,25 @@ const PILLARS: {
   },
 ];
 
-/** The Care tab: four care pillars — Physical, Emotional, Fetal, and Visits. */
+/**
+ * The Care tab: four care pillars — Physical, Emotional, Fetal, and Visits.
+ * `audience='partner'` hides Emotional care, leaving Physical / Fetal / Visits.
+ */
 export function CareTab({
   data,
   userId,
   onSave,
+  audience = 'mother',
 }: {
   data: OnboardingData;
   userId: string;
   onSave: (d: OnboardingData) => Promise<void>;
+  audience?: 'mother' | 'partner';
 }) {
   const t = useTheme();
   const reduce = useReducedMotion();
   const [view, setView] = useState<'landing' | Pillar>('landing');
+  const pillars = audience === 'partner' ? PILLARS.filter((p) => p.key !== 'emotional') : PILLARS;
 
   if (view === 'physical') {
     return <PhysicalCare data={data} userId={userId} onSave={onSave} onBack={() => setView('landing')} />;
@@ -94,7 +100,7 @@ export function CareTab({
           </AppText>
         </Animated.View>
 
-        {PILLARS.map((p, i) => (
+        {pillars.map((p, i) => (
           <Animated.View key={p.key} entering={entering(90 + i * 80)}>
             <Card
               onPress={p.ready ? () => setView(p.key) : undefined}
