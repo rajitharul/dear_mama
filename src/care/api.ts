@@ -14,7 +14,8 @@ export type LogType =
   | 'rest'
   | 'kick'
   | 'movement'
-  | 'visit';
+  | 'visit'
+  | 'journey';
 
 // ─── Vital payloads (discriminated by `kind`, stored in `care_logs.data` jsonb) ───
 export type WeightUnit = 'kg' | 'lb';
@@ -86,6 +87,23 @@ export type VisitData = {
   routines: string[]; // routines / actionables (e.g. "30 min walk daily")
 };
 
+// ─── Journey (pregnancy milestone timeline) ───
+// A milestone the user has marked as it happened. The curated template of milestones lives
+// in app code (src/care/journey/milestones.ts); a recorded milestone is one care_logs row
+// with `logged_at` = when it happened. `milestoneId` points at a catalog entry, or is null
+// for a user-added custom event. `title`/`category` are copied onto the row so the timeline
+// can render custom events (and stay readable if the catalog later changes). Photos reuse the
+// 'care-files' bucket (only the object path is stored — see TestFileRef/uploadCareFile).
+export type JourneyCategory = 'beginning' | 'clinical' | 'baby_body' | 'prep';
+export type JourneyData = {
+  kind: 'journey';
+  milestoneId: string | null; // catalog id, or null for a custom event
+  title: string; // copied from the catalog, or the custom title
+  category: JourneyCategory;
+  note?: string;
+  files: TestFileRef[]; // photos (may be empty)
+};
+
 // ─── Actionable payloads ───
 // Two flavours share log_type='actionable', discriminated by `kind`:
 //  • 'actionable_item'  — a user-defined actionable: name, what to do, how often, and a
@@ -147,7 +165,8 @@ export type CareLogData =
   | RestData
   | KickData
   | MovementData
-  | VisitData;
+  | VisitData
+  | JourneyData;
 
 /** A Care log as used by the app, generic over its payload type. */
 export type CareLog<T extends CareLogData = CareLogData> = {
@@ -297,6 +316,12 @@ export const addVisit = (userId: string, payload: VisitData, loggedAt: Date) =>
   addLog(userId, 'visit', payload, loggedAt);
 export const updateVisit = (id: string, payload: VisitData, loggedAt: Date) =>
   updateLog(id, 'visit', payload, loggedAt);
+
+export const listJourney = () => listLogs<JourneyData>('journey');
+export const addJourney = (userId: string, payload: JourneyData, loggedAt: Date) =>
+  addLog(userId, 'journey', payload, loggedAt);
+export const updateJourney = (id: string, payload: JourneyData, loggedAt: Date) =>
+  updateLog(id, 'journey', payload, loggedAt);
 
 /** Returns both item definitions and completion checks (split in the UI). */
 export const listActionables = () => listLogs<ActionableData>('actionable');

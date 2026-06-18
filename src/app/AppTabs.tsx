@@ -4,12 +4,13 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CareTab } from '@/care/CareTab';
+import { JourneyTimeline } from '@/care/journey/JourneyTimeline';
 import { Home } from '@/home/Home';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
 import { AppText, PressableScale } from '@/ui';
 
-type Tab = 'home' | 'care';
+type Tab = 'home' | 'journey' | 'care';
 
 const TABS: {
   key: Tab;
@@ -18,6 +19,7 @@ const TABS: {
   iconActive: keyof typeof Ionicons.glyphMap;
 }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconActive: 'home' },
+  { key: 'journey', label: 'Journey', icon: 'map-outline', iconActive: 'map' },
   { key: 'care', label: 'Care', icon: 'heart-outline', iconActive: 'heart' },
 ];
 
@@ -48,6 +50,8 @@ export function AppTabs({
       <View style={{ flex: 1 }}>
         {tab === 'home' ? (
           <Home data={data} onEdit={onEdit} onSignOut={onSignOut} />
+        ) : tab === 'journey' ? (
+          <JourneyTimeline userId={userId} data={data} />
         ) : (
           <CareTab data={data} userId={userId} onSave={onSaveProfile} />
         )}
