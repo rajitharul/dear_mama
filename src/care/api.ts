@@ -327,6 +327,8 @@ export const updateJourney = (id: string, payload: JourneyData, loggedAt: Date) 
 export const listActionables = () => listLogs<ActionableData>('actionable');
 export const addActionableItem = (userId: string, item: Omit<ActionableItemData, 'kind'>) =>
   addLog<ActionableData>(userId, 'actionable', { kind: 'actionable_item', ...item }, new Date());
+export const updateActionableItem = (id: string, item: Omit<ActionableItemData, 'kind'>, loggedAt: Date) =>
+  updateLog<ActionableData>(id, 'actionable', { kind: 'actionable_item', ...item }, loggedAt);
 export const addActionableCheck = (userId: string, itemId: string, on: Date) =>
   addLog<ActionableData>(userId, 'actionable', { kind: 'actionable_check', itemId }, on);
 

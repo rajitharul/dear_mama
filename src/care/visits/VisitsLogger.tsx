@@ -21,16 +21,23 @@ import {
   listActionables,
   listVisits,
   updateVisit,
-  type ActionableFrequency,
   type ActionableItemData,
   type ActionableSchedule,
   type CareLog,
   type VisitData,
 } from '@/care/api';
 import { loadLogCache } from '@/care/cache';
+import {
+  buildSchedule,
+  emptyScheduleDraft,
+  FREQ_LABEL,
+  ScheduleFields,
+  validateSchedule,
+  type ScheduleDraft,
+} from '@/care/physical/scheduleFields';
 import { errorMessage } from '@/lib/errors';
 import { useTheme } from '@/theme';
-import { AppText, Button, calmRise, Card, ChipSelect, DateField, Field, Pill } from '@/ui';
+import { AppText, Button, calmRise, Card, DateField, Field, Pill } from '@/ui';
 
 const isUpcomingAt = (loggedAt: string, now: number) => new Date(loggedAt).getTime() > now;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -38,17 +45,6 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 // ── Promoting a visit item to an Actionable ──
 // The created actionable is linked back to the visit via ActionableItemData.link.
 type ScheduleKind = 'repeating' | 'finite';
-const FREQS: ActionableFrequency[] = ['daily', 'twice_daily', 'weekly', 'monthly', 'as_needed'];
-const FREQ_LABEL: Record<ActionableFrequency, string> = {
-  daily: 'Daily',
-  twice_daily: 'Twice daily',
-  weekly: 'Weekly',
-  monthly: 'Monthly',
-  as_needed: 'As needed',
-};
-const COUNT_OPTIONS = ['Once', 'Twice', '3 times', '4 times', '5 times'];
-const countToLabel = (n: number) => COUNT_OPTIONS[Math.min(Math.max(n, 1), 5) - 1];
-const labelToCount = (l: string) => COUNT_OPTIONS.indexOf(l) + 1;
 
 const scheduleShort = (s: ActionableSchedule): string => {
   if (s.type === 'finite') return s.targetCount === 1 ? 'One-time' : `${s.targetCount}×`;
@@ -475,18 +471,19 @@ function SchedulePicker({
   onPick: (schedule: ActionableSchedule) => void | Promise<void>;
 }) {
   const t = useTheme();
-  const [kind, setKind] = useState<ScheduleKind>(defaultKind);
-  const [frequency, setFrequency] = useState<ActionableFrequency>('daily');
-  const [targetCount, setTargetCount] = useState(1);
+  const [draft, setDraft] = useState<ScheduleDraft>(() => emptyScheduleDraft(defaultKind));
   const [saving, setSaving] = useState(false);
 
   async function confirm() {
     if (saving) return;
+    const dateError = validateSchedule(draft);
+    if (dateError) {
+      Alert.alert('Check the dates', dateError);
+      return;
+    }
     setSaving(true);
-    const schedule: ActionableSchedule =
-      kind === 'repeating' ? { type: 'repeating', frequency } : { type: 'finite', targetCount };
     try {
-      await onPick(schedule);
+      await onPick(buildSchedule(draft));
     } catch (e) {
       setSaving(false);
       Alert.alert('Could not add', errorMessage(e));
@@ -519,40 +516,7 @@ function SchedulePicker({
         </Card>
 
         <Card style={{ gap: t.spacing.lg }}>
-          <ChipSelect
-            label="Schedule"
-            options={['Repeating', 'One-off']}
-            value={[kind === 'repeating' ? 'Repeating' : 'One-off']}
-            onChange={(next) => {
-              if (next[0]) setKind(next[0] === 'One-off' ? 'finite' : 'repeating');
-            }}
-            hint={
-              kind === 'repeating'
-                ? 'Recurs on a cadence you’ll tick off.'
-                : 'A fixed number of times you’ll tick off.'
-            }
-          />
-          {kind === 'repeating' ? (
-            <ChipSelect
-              label="How often?"
-              options={FREQS.map((f) => FREQ_LABEL[f])}
-              value={[FREQ_LABEL[frequency]]}
-              onChange={(next) => {
-                const found = FREQS.find((f) => FREQ_LABEL[f] === next[0]);
-                if (found) setFrequency(found);
-              }}
-            />
-          ) : (
-            <ChipSelect
-              label="How many times?"
-              options={COUNT_OPTIONS}
-              value={[countToLabel(targetCount)]}
-              onChange={(next) => {
-                const n = labelToCount(next[0] ?? '');
-                if (n > 0) setTargetCount(n);
-              }}
-            />
-          )}
+          <ScheduleFields draft={draft} onChange={setDraft} />
         </Card>
       </ScrollView>
 

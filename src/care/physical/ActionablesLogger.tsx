@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { format, subDays, subMonths, subWeeks } from 'date-fns';
+import { format, parseISO, subDays, subMonths, subWeeks } from 'date-fns';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +18,7 @@ import {
   addActionableItem,
   deleteLog,
   listActionables,
+  updateActionableItem,
   type ActionableCheckData,
   type ActionableData,
   type ActionableFrequency,
@@ -26,34 +27,30 @@ import {
   type CareLog,
 } from '@/care/api';
 import { loadLogCache } from '@/care/cache';
+import {
+  buildSchedule,
+  dayKey,
+  emptyScheduleDraft,
+  FREQ_LABEL,
+  parseDay,
+  ScheduleFields,
+  splitSchedule,
+  validateSchedule,
+  type ScheduleDraft,
+} from '@/care/physical/scheduleFields';
 import { errorMessage } from '@/lib/errors';
 import { useTheme } from '@/theme';
-import { AppText, Button, calmRise, Card, ChipSelect, DateField, Field, Pill } from '@/ui';
+import { AppText, Button, calmRise, Card, Field, Pill } from '@/ui';
 
 type Freq = ActionableFrequency;
-type Item = { id: string; label: string; instruction?: string; schedule: ActionableSchedule };
+type Item = { id: string; label: string; instruction?: string; schedule: ActionableSchedule; loggedAt: string };
 type CheckLog = CareLog<ActionableCheckData>;
 type Status = 'active' | 'upcoming' | 'ended' | 'overdue';
 
-const FREQS: Freq[] = ['daily', 'twice_daily', 'weekly', 'monthly', 'as_needed'];
-const FREQ_LABEL: Record<Freq, string> = {
-  daily: 'Daily',
-  twice_daily: 'Twice daily',
-  weekly: 'Weekly',
-  monthly: 'Monthly',
-  as_needed: 'As needed',
-};
 // How many completions a single period needs (0 = no required cadence).
 const TARGET: Record<Freq, number> = { daily: 1, twice_daily: 2, weekly: 1, monthly: 1, as_needed: 0 };
 const STREAK_UNIT: Record<Freq, string> = { daily: 'day', twice_daily: 'day', weekly: 'week', monthly: 'month', as_needed: '' };
 
-const COUNT_OPTIONS = ['Once', 'Twice', '3 times', '4 times', '5 times'];
-const countToLabel = (n: number) => COUNT_OPTIONS[Math.min(Math.max(n, 1), 5) - 1];
-const labelToCount = (l: string) => COUNT_OPTIONS.indexOf(l) + 1;
-
-const dayKey = (d: Date) => format(d, 'yyyy-MM-dd');
-// Parse a 'yyyy-MM-dd' as local midnight so day comparisons don't shift across the UTC boundary.
-const parseDay = (s: string) => new Date(`${s}T00:00:00`);
 const fmtDay = (s: string) => format(parseDay(s), 'd MMM');
 
 // A key that buckets a date into the item's period, so checks can be counted per period.
@@ -178,7 +175,8 @@ const STATUS_RANK: Record<Status, number> = { overdue: 0, active: 1, upcoming: 2
 export function ActionablesLogger({ userId, onBack }: { userId: string; onBack: () => void }) {
   const t = useTheme();
   const reduce = useReducedMotion();
-  const [mode, setMode] = useState<'list' | 'add'>('list');
+  // null = list; otherwise the add/edit form (with `existing` when editing).
+  const [form, setForm] = useState<{ existing?: Item } | null>(null);
   const [logs, setLogs] = useState<CareLog<ActionableData>[]>([]);
   const [loading, setLoading] = useState(true);
   const [stale, setStale] = useState(false);
@@ -218,6 +216,7 @@ export function ActionablesLogger({ userId, onBack }: { userId: string; onBack: 
     label: l.data.label,
     instruction: l.data.instruction,
     schedule: normalizeSchedule(l.data),
+    loggedAt: l.loggedAt,
   }));
   const states = new Map(items.map((i) => [i.id, computeState(i, checksByItem, now)] as const));
   items.sort((a, b) => STATUS_RANK[states.get(a.id)!.status] - STATUS_RANK[states.get(b.id)!.status]);
@@ -282,14 +281,16 @@ export function ActionablesLogger({ userId, onBack }: { userId: string; onBack: 
     ]);
   }
 
-  if (mode === 'add') {
+  if (form) {
+    const editing = form.existing;
     return (
       <AddItemForm
         userId={userId}
-        onCancel={() => setMode('list')}
+        existing={editing}
+        onCancel={() => setForm(null)}
         onSaved={(log) => {
-          setLogs((l) => [log, ...l]);
-          setMode('list');
+          setLogs((l) => (editing ? l.map((x) => (x.id === log.id ? log : x)) : [log, ...l]));
+          setForm(null);
         }}
       />
     );
@@ -321,7 +322,7 @@ export function ActionablesLogger({ userId, onBack }: { userId: string; onBack: 
           paddingBottom: t.spacing.xxxl,
         }}
         showsVerticalScrollIndicator={false}>
-        <Button label="Add an actionable" icon="add" onPress={() => setMode('add')} />
+        <Button label="Add an actionable" icon="add" onPress={() => setForm({})} />
 
         {stale ? (
           <Pill label="Showing saved list — couldn’t refresh" tone="neutral" icon="cloud-offline-outline" />
@@ -378,6 +379,7 @@ export function ActionablesLogger({ userId, onBack }: { userId: string; onBack: 
                   state={states.get(item.id)!}
                   onTapSlot={(index) => tapSlot(item, states.get(item.id)!, index)}
                   onLogAsNeeded={() => increment(item)}
+                  onEdit={() => setForm({ existing: item })}
                   onRemove={() => confirmRemove(item)}
                 />
               </Animated.View>
@@ -404,12 +406,14 @@ function ActionableCard({
   state,
   onTapSlot,
   onLogAsNeeded,
+  onEdit,
   onRemove,
 }: {
   item: Item;
   state: ItemState;
   onTapSlot: (index: number) => void;
   onLogAsNeeded: () => void;
+  onEdit: () => void;
   onRemove: () => void;
 }) {
   const t = useTheme();
@@ -440,13 +444,22 @@ function ActionableCard({
           <AppText variant="subtitle">{item.label}</AppText>
           {item.instruction ? <AppText variant="bodyMuted">{item.instruction}</AppText> : null}
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${item.label}`}
-          hitSlop={10}
-          onPress={onRemove}>
-          <Ionicons name="trash-outline" size={20} color={t.colors.textTertiary} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${item.label}`}
+            hitSlop={10}
+            onPress={onEdit}>
+            <Ionicons name="create-outline" size={20} color={t.colors.textTertiary} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${item.label}`}
+            hitSlop={10}
+            onPress={onRemove}>
+            <Ionicons name="trash-outline" size={20} color={t.colors.textTertiary} />
+          </Pressable>
+        </View>
       </View>
 
       <View
@@ -518,83 +531,25 @@ function ActionableCard({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function OptionalDateRow({
-  addLabel,
-  fieldLabel,
-  value,
-  set,
-  minimumDate,
-}: {
-  addLabel: string;
-  fieldLabel: string;
-  value: Date | null;
-  set: (d: Date | null) => void;
-  minimumDate?: Date;
-}) {
-  const t = useTheme();
-  if (!value) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={addLabel}
-        onPress={() => set(minimumDate && minimumDate > new Date() ? minimumDate : new Date())}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: t.spacing.sm,
-          paddingVertical: t.spacing.sm,
-        }}>
-        <Ionicons name="add-circle-outline" size={20} color={t.colors.accent} />
-        <AppText variant="body" color={t.colors.accent}>
-          {addLabel}
-        </AppText>
-      </Pressable>
-    );
-  }
-  return (
-    <View style={{ gap: t.spacing.xs }}>
-      <DateField label={fieldLabel} value={value} onChange={set} minimumDate={minimumDate} />
-      <Pressable accessibilityRole="button" accessibilityLabel={`Clear ${fieldLabel}`} onPress={() => set(null)}>
-        <AppText variant="caption" color={t.colors.textSecondary}>
-          Clear
-        </AppText>
-      </Pressable>
-    </View>
-  );
-}
-
 function AddItemForm({
   userId,
+  existing,
   onCancel,
   onSaved,
 }: {
   userId: string;
+  existing?: Item;
   onCancel: () => void;
   onSaved: (log: CareLog<ActionableData>) => void;
 }) {
   const t = useTheme();
-  const [label, setLabel] = useState('');
-  const [instruction, setInstruction] = useState('');
-  const [scheduleType, setScheduleType] = useState<'repeating' | 'finite'>('repeating');
-  const [frequency, setFrequency] = useState<Freq>('daily');
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [targetCount, setTargetCount] = useState(1);
-  const [deadline, setDeadline] = useState<Date | null>(null);
+  const [label, setLabel] = useState(existing?.label ?? '');
+  const [instruction, setInstruction] = useState(existing?.instruction ?? '');
+  const [draft, setDraft] = useState<ScheduleDraft>(() =>
+    existing ? splitSchedule(existing.schedule) : emptyScheduleDraft(),
+  );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  function buildSchedule(): ActionableSchedule {
-    if (scheduleType === 'repeating') {
-      return {
-        type: 'repeating',
-        frequency,
-        ...(startDate ? { startDate: dayKey(startDate) } : {}),
-        ...(endDate ? { endDate: dayKey(endDate) } : {}),
-      };
-    }
-    return { type: 'finite', targetCount, ...(deadline ? { deadline: dayKey(deadline) } : {}) };
-  }
 
   async function save() {
     if (saving) return;
@@ -603,18 +558,22 @@ function AddItemForm({
       setError('Please name the actionable');
       return;
     }
-    if (scheduleType === 'repeating' && startDate && endDate && endDate < startDate) {
-      Alert.alert('Check the dates', 'The end date can’t be before the start date.');
+    const dateError = validateSchedule(draft);
+    if (dateError) {
+      Alert.alert('Check the dates', dateError);
       return;
     }
     setError('');
     setSaving(true);
+    const item = {
+      label: name,
+      instruction: instruction.trim() || undefined,
+      schedule: buildSchedule(draft),
+    };
     try {
-      const log = await addActionableItem(userId, {
-        label: name,
-        instruction: instruction.trim() || undefined,
-        schedule: buildSchedule(),
-      });
+      const log = existing
+        ? await updateActionableItem(existing.id, item, parseISO(existing.loggedAt))
+        : await addActionableItem(userId, item);
       onSaved(log);
     } catch (e) {
       setSaving(false);
@@ -636,7 +595,7 @@ function AddItemForm({
           <Pressable accessibilityRole="button" accessibilityLabel="Cancel" hitSlop={12} onPress={onCancel}>
             <Ionicons name="chevron-back" size={26} color={t.colors.text} />
           </Pressable>
-          <AppText variant="subtitle">Add an actionable</AppText>
+          <AppText variant="subtitle">{existing ? 'Edit actionable' : 'Add an actionable'}</AppText>
         </View>
 
         <ScrollView
@@ -650,7 +609,7 @@ function AddItemForm({
               value={label}
               onChangeText={setLabel}
               error={error}
-              autoFocus
+              autoFocus={!existing}
             />
             <Field
               label="What to do (optional)"
@@ -662,65 +621,7 @@ function AddItemForm({
           </Card>
 
           <Card style={{ gap: t.spacing.lg }}>
-            <ChipSelect
-              label="Schedule"
-              options={['Repeating', 'One-off']}
-              value={[scheduleType === 'repeating' ? 'Repeating' : 'One-off']}
-              onChange={(next) => {
-                if (next[0]) setScheduleType(next[0] === 'One-off' ? 'finite' : 'repeating');
-              }}
-              hint={
-                scheduleType === 'repeating'
-                  ? 'Recurs on a cadence — optionally only between two dates.'
-                  : 'A fixed number of times, optionally by a deadline.'
-              }
-            />
-
-            {scheduleType === 'repeating' ? (
-              <>
-                <ChipSelect
-                  label="How often?"
-                  options={FREQS.map((f) => FREQ_LABEL[f])}
-                  value={[FREQ_LABEL[frequency]]}
-                  onChange={(next) => {
-                    const found = FREQS.find((f) => FREQ_LABEL[f] === next[0]);
-                    if (found) setFrequency(found);
-                  }}
-                />
-                <View style={{ gap: t.spacing.sm }}>
-                  <AppText variant="label">ACTIVE PERIOD (OPTIONAL)</AppText>
-                  <OptionalDateRow addLabel="Add a start date" fieldLabel="Start date" value={startDate} set={setStartDate} />
-                  <OptionalDateRow
-                    addLabel="Add an end date"
-                    fieldLabel="End date"
-                    value={endDate}
-                    set={setEndDate}
-                    minimumDate={startDate ?? undefined}
-                  />
-                </View>
-              </>
-            ) : (
-              <>
-                <ChipSelect
-                  label="How many times?"
-                  options={COUNT_OPTIONS}
-                  value={[countToLabel(targetCount)]}
-                  onChange={(next) => {
-                    const n = labelToCount(next[0] ?? '');
-                    if (n > 0) setTargetCount(n);
-                  }}
-                />
-                <View style={{ gap: t.spacing.sm }}>
-                  <AppText variant="label">DEADLINE (OPTIONAL)</AppText>
-                  <OptionalDateRow
-                    addLabel="Add a deadline"
-                    fieldLabel="Deadline"
-                    value={deadline}
-                    set={setDeadline}
-                  />
-                </View>
-              </>
-            )}
+            <ScheduleFields draft={draft} onChange={setDraft} />
           </Card>
 
           <View style={{ gap: t.spacing.xs }}>
@@ -754,7 +655,12 @@ function AddItemForm({
         </ScrollView>
 
         <View style={{ paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.md, paddingBottom: t.spacing.lg }}>
-          <Button label={saving ? 'Saving…' : 'Add actionable'} icon="checkmark" onPress={save} loading={saving} />
+          <Button
+            label={saving ? 'Saving…' : existing ? 'Save changes' : 'Add actionable'}
+            icon="checkmark"
+            onPress={save}
+            loading={saving}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
