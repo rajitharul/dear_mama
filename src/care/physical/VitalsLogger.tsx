@@ -18,8 +18,10 @@ import {
   deleteLog,
   listVitals,
   type CareLog,
+  type ExerciseIntensity,
   type GlucoseContext,
   type GlucoseUnit,
+  type MealKind,
   type VitalData,
   type VitalKind,
   type WeightUnit,
@@ -33,6 +35,19 @@ const CONTEXT_LABEL: Record<GlucoseContext, string> = {
   fasting: 'Fasting',
   post_meal: 'Post-meal',
   random: 'Random',
+};
+
+const MEAL_LABEL: Record<MealKind, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snack: 'Snack',
+};
+
+const INTENSITY_LABEL: Record<ExerciseIntensity, string> = {
+  light: 'Light',
+  moderate: 'Moderate',
+  intense: 'Intense',
 };
 
 function summarize(d: VitalData): { icon: keyof typeof Ionicons.glyphMap; title: string; value: string } {
@@ -50,6 +65,20 @@ function summarize(d: VitalData): { icon: keyof typeof Ionicons.glyphMap; title:
         icon: 'water-outline',
         title: 'Blood sugar',
         value: `${d.value} ${d.unit} · ${CONTEXT_LABEL[d.context]}`,
+      };
+    case 'water':
+      return {
+        icon: 'cafe-outline',
+        title: 'Water',
+        value: `${d.glasses} ${d.glasses === 1 ? 'glass' : 'glasses'}`,
+      };
+    case 'food':
+      return { icon: 'restaurant-outline', title: MEAL_LABEL[d.meal], value: d.description };
+    case 'exercise':
+      return {
+        icon: 'walk-outline',
+        title: 'Exercise',
+        value: `${d.activity} · ${d.durationMin} min${d.intensity ? ` · ${INTENSITY_LABEL[d.intensity]}` : ''}`,
       };
   }
 }
@@ -160,7 +189,7 @@ export function VitalsLogger({ userId, onBack }: { userId: string; onBack: () =>
               No readings yet
             </AppText>
             <AppText variant="bodyMuted" center style={{ maxWidth: 280 }}>
-              Tap “Log a reading” to record your blood pressure, weight or blood sugar.
+              Tap “Log a reading” to record your blood pressure, weight, blood sugar, water, food or exercise.
             </AppText>
           </Card>
         ) : (
@@ -216,10 +245,15 @@ const KIND_OPTIONS: { kind: VitalKind; label: string }[] = [
   { kind: 'bp', label: 'Blood pressure' },
   { kind: 'weight', label: 'Weight' },
   { kind: 'blood_sugar', label: 'Blood sugar' },
+  { kind: 'water', label: 'Water' },
+  { kind: 'food', label: 'Food' },
+  { kind: 'exercise', label: 'Exercise' },
 ];
 const WEIGHT_UNITS: WeightUnit[] = ['kg', 'lb'];
 const GLUCOSE_UNITS: GlucoseUnit[] = ['mmol/L', 'mg/dL'];
 const GLUCOSE_CONTEXTS: GlucoseContext[] = ['fasting', 'post_meal', 'random'];
+const MEAL_KINDS: MealKind[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+const EXERCISE_INTENSITIES: ExerciseIntensity[] = ['light', 'moderate', 'intense'];
 
 const num = (s: string): number | null => {
   const n = parseFloat(s.trim());
@@ -245,6 +279,12 @@ function AddVitalForm({
   const [glucose, setGlucose] = useState('');
   const [glucoseUnit, setGlucoseUnit] = useState<GlucoseUnit>('mmol/L');
   const [context, setContext] = useState<GlucoseContext>('fasting');
+  const [glasses, setGlasses] = useState(1);
+  const [meal, setMeal] = useState<MealKind>('breakfast');
+  const [foodDesc, setFoodDesc] = useState('');
+  const [activity, setActivity] = useState('');
+  const [duration, setDuration] = useState('');
+  const [intensity, setIntensity] = useState<ExerciseIntensity>('moderate');
   const [note, setNote] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -268,10 +308,22 @@ function AddVitalForm({
       const v = num(weight);
       if (!v) next.weight = 'Enter a number';
       else payload = { kind: 'weight', value: v, unit: weightUnit, note: trimmedNote };
-    } else {
+    } else if (kind === 'blood_sugar') {
       const v = num(glucose);
       if (!v) next.glucose = 'Enter a number';
       else payload = { kind: 'blood_sugar', value: v, unit: glucoseUnit, context, note: trimmedNote };
+    } else if (kind === 'water') {
+      payload = { kind: 'water', glasses, note: trimmedNote };
+    } else if (kind === 'food') {
+      const desc = foodDesc.trim();
+      if (!desc) next.foodDesc = 'What did you eat?';
+      else payload = { kind: 'food', meal, description: desc, note: trimmedNote };
+    } else {
+      const act = activity.trim();
+      const mins = num(duration);
+      if (!act) next.activity = 'Name the activity';
+      if (!mins) next.duration = 'Enter minutes';
+      if (act && mins) payload = { kind: 'exercise', activity: act, durationMin: mins, intensity, note: trimmedNote };
     }
 
     setErrors(next);
@@ -397,6 +449,88 @@ function AddVitalForm({
                   onChange={(n) => {
                     const found = GLUCOSE_CONTEXTS.find((c) => CONTEXT_LABEL[c] === n[0]);
                     if (found) setContext(found);
+                  }}
+                />
+              </>
+            ) : null}
+
+            {kind === 'water' ? (
+              <View style={{ gap: t.spacing.sm }}>
+                <AppText variant="label">HOW MANY GLASSES?</AppText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: t.spacing.xl }}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="One fewer glass"
+                    hitSlop={10}
+                    disabled={glasses <= 1}
+                    onPress={() => setGlasses((g) => Math.max(1, g - 1))}>
+                    <Ionicons
+                      name="remove-circle-outline"
+                      size={40}
+                      color={glasses <= 1 ? t.colors.border : t.colors.accent}
+                    />
+                  </Pressable>
+                  <View style={{ alignItems: 'center', minWidth: 64 }}>
+                    <AppText variant="display">{glasses}</AppText>
+                    <AppText variant="caption">{glasses === 1 ? 'glass' : 'glasses'}</AppText>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="One more glass"
+                    hitSlop={10}
+                    onPress={() => setGlasses((g) => g + 1)}>
+                    <Ionicons name="add-circle-outline" size={40} color={t.colors.accent} />
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {kind === 'food' ? (
+              <>
+                <ChipSelect
+                  label="Meal"
+                  options={MEAL_KINDS.map((m) => MEAL_LABEL[m])}
+                  value={[MEAL_LABEL[meal]]}
+                  onChange={(n) => {
+                    const found = MEAL_KINDS.find((m) => MEAL_LABEL[m] === n[0]);
+                    if (found) setMeal(found);
+                  }}
+                />
+                <Field
+                  label="What did you eat?"
+                  placeholder="e.g. Oats with berries and yoghurt"
+                  value={foodDesc}
+                  onChangeText={setFoodDesc}
+                  error={errors.foodDesc}
+                  multiline
+                />
+              </>
+            ) : null}
+
+            {kind === 'exercise' ? (
+              <>
+                <Field
+                  label="Activity"
+                  placeholder="e.g. Walk, prenatal yoga, swimming"
+                  value={activity}
+                  onChangeText={setActivity}
+                  error={errors.activity}
+                />
+                <Field
+                  label="Duration (minutes)"
+                  placeholder="e.g. 30"
+                  keyboardType="number-pad"
+                  value={duration}
+                  onChangeText={setDuration}
+                  error={errors.duration}
+                />
+                <ChipSelect
+                  label="Intensity (optional)"
+                  options={EXERCISE_INTENSITIES.map((x) => INTENSITY_LABEL[x])}
+                  value={[INTENSITY_LABEL[intensity]]}
+                  onChange={(n) => {
+                    const found = EXERCISE_INTENSITIES.find((x) => INTENSITY_LABEL[x] === n[0]);
+                    if (found) setIntensity(found);
                   }}
                 />
               </>

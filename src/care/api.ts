@@ -32,7 +32,21 @@ export type BloodSugarData = {
   context: GlucoseContext;
   note?: string;
 };
-export type VitalData = BpData | WeightData | BloodSugarData;
+
+// ─── Lifestyle logging (food, water, exercise) — shares the 'vital' log_type, so no migration. ───
+export type MealKind = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type ExerciseIntensity = 'light' | 'moderate' | 'intense';
+export type WaterData = { kind: 'water'; glasses: number; note?: string }; // count of glasses
+export type FoodData = { kind: 'food'; meal: MealKind; description: string; note?: string };
+export type ExerciseData = {
+  kind: 'exercise';
+  activity: string; // e.g. "Walk", "Prenatal yoga"
+  durationMin: number;
+  intensity?: ExerciseIntensity;
+  note?: string;
+};
+
+export type VitalData = BpData | WeightData | BloodSugarData | WaterData | FoodData | ExerciseData;
 export type VitalKind = VitalData['kind'];
 
 // ─── Symptom payload ───

@@ -27,10 +27,10 @@ type Feature = {
 const FEATURES: Feature[] = [
   {
     key: 'vitals',
-    title: 'Vitals',
-    description: 'Blood pressure, weight, temperature & more.',
+    title: 'Vitals & daily logs',
+    description: 'Blood pressure, weight, blood sugar, water, food & exercise.',
     icon: 'pulse-outline',
-    blurb: 'Log your blood pressure, weight, temperature and other vitals, and watch the gentle trends across your pregnancy.',
+    blurb: 'Log your blood pressure, weight and blood sugar, plus everyday things like water, food and exercise — and watch the gentle trends across your pregnancy.',
   },
   {
     key: 'contractions',
