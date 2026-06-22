@@ -7,12 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmotionalCare } from '@/care/emotional/EmotionalCare';
 import { FetalCare } from '@/care/fetal/FetalCare';
 import { PhysicalCare } from '@/care/physical/PhysicalCare';
+import { MedicalReport } from '@/care/reports/MedicalReport';
 import { VisitsLogger } from '@/care/visits/VisitsLogger';
 import type { OnboardingData } from '@/onboarding/types';
 import { useTheme } from '@/theme';
 import { AppText, calmRise, Card, OrganicBackdrop, Pill } from '@/ui';
 
-type Pillar = 'physical' | 'emotional' | 'fetal' | 'visits';
+type Pillar = 'physical' | 'emotional' | 'fetal' | 'visits' | 'report';
 
 const PILLARS: {
   key: Pillar;
@@ -49,6 +50,13 @@ const PILLARS: {
     icon: 'medical-outline',
     ready: true,
   },
+  {
+    key: 'report',
+    title: 'Medical report',
+    description: 'Your current record: last appointment, vitals, tests & symptoms.',
+    icon: 'reader-outline',
+    ready: true,
+  },
 ];
 
 /**
@@ -71,6 +79,9 @@ export function CareTab({
   const [view, setView] = useState<'landing' | Pillar>('landing');
   const pillars = audience === 'partner' ? PILLARS.filter((p) => p.key !== 'emotional') : PILLARS;
 
+  if (view === 'report') {
+    return <MedicalReport onBack={() => setView('landing')} />;
+  }
   if (view === 'physical') {
     return <PhysicalCare data={data} userId={userId} onSave={onSave} onBack={() => setView('landing')} />;
   }

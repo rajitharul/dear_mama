@@ -353,7 +353,7 @@ function VisitDetail({
 
         {v.notes ? (
           <Card style={{ gap: t.spacing.sm }}>
-            <AppText variant="label">DOCTOR’S NOTES</AppText>
+            <AppText variant="label">DOCTOR’S DIAGNOSIS</AppText>
             <AppText variant="body">{v.notes}</AppText>
           </Card>
         ) : null}
@@ -842,7 +842,7 @@ function VisitForm({
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
                 <Ionicons name="calendar-outline" size={18} color={t.colors.accent} />
                 <AppText variant="bodyMuted" style={{ flex: 1 }}>
-                  This visit hasn’t happened yet. After it, edit it to add the doctor’s notes, prescription
+                  This visit hasn’t happened yet. After it, edit it to add the doctor’s diagnosis, prescription
                   and tests.
                 </AppText>
               </View>
@@ -858,8 +858,8 @@ function VisitForm({
             <>
               <Card style={{ gap: t.spacing.lg }}>
                 <Field
-                  label="Doctor’s notes (optional)"
-                  placeholder="What your doctor told you"
+                  label="Doctor’s diagnosis (optional)"
+                  placeholder="What your doctor found or diagnosed"
                   value={notes}
                   onChangeText={setNotes}
                   multiline
