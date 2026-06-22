@@ -49,9 +49,9 @@ const FEATURES: Feature[] = [
   {
     key: 'actionables',
     title: 'Actionables',
-    description: 'Supplements, water, medicine, monitoring & exercise.',
+    description: 'Reminders and follow-up activities to keep up with.',
     icon: 'checkmark-done-outline',
-    blurb: 'A gentle daily checklist for supplements, food & water, prescribed medicine, blood-sugar monitoring, any doctor-prescribed checks, and exercise.',
+    blurb: 'A gentle checklist of reminders and follow-up activities from your care team — set how often each one repeats, with a date range or deadline if it has one.',
   },
   {
     key: 'symptoms',
