@@ -14,6 +14,7 @@ export type LogType =
   | 'rest'
   | 'kick'
   | 'movement'
+  | 'contraction'
   | 'visit'
   | 'journey';
 
@@ -68,6 +69,22 @@ export type RestData = { kind: 'rest'; hours: number; quality: RestQuality; note
 //    a list or typed as "other") plus an optional note. Not counted, no session.
 export type KickData = { kind: 'kick'; count: number; durationMin: number; note?: string };
 export type MovementData = { kind: 'movement'; movement: string; note?: string };
+
+// ─── Contractions (Physical care) ───
+// One timing *session*: each contraction's start + how long it lasted. The app derives the gap
+// between starts (frequency). `type` tags the session as practice (Braxton Hicks) or labor;
+// irregular vs regular intervals reveal the difference either way. One session = one care_logs row.
+export type ContractionType = 'braxton_hicks' | 'labor';
+export type ContractionEntry = { startedAt: string; durationSec: number }; // ISO start, length in s
+export type ContractionData = {
+  kind: 'contraction';
+  type?: ContractionType; // optional session tag
+  entries: ContractionEntry[]; // each timed contraction, in order
+  count: number; // entries.length (denormalized for the list summary)
+  avgDurationSec: number; // mean entry duration
+  avgIntervalSec: number; // mean gap between consecutive starts (0 if < 2 entries)
+  note?: string;
+};
 
 // ─── Visits (antenatal appointments) ───
 // One self-contained record per visit. `logged_at` is the visit's date & time; a future
@@ -165,6 +182,7 @@ export type CareLogData =
   | RestData
   | KickData
   | MovementData
+  | ContractionData
   | VisitData
   | JourneyData;
 
@@ -310,6 +328,10 @@ export const addKick = (userId: string, payload: KickData, loggedAt: Date) =>
 export const listMovements = () => listLogs<MovementData>('movement');
 export const addMovement = (userId: string, payload: MovementData, loggedAt: Date) =>
   addLog(userId, 'movement', payload, loggedAt);
+
+export const listContractions = () => listLogs<ContractionData>('contraction');
+export const addContraction = (userId: string, payload: ContractionData, loggedAt: Date) =>
+  addLog(userId, 'contraction', payload, loggedAt);
 
 export const listVisits = () => listLogs<VisitData>('visit');
 export const addVisit = (userId: string, payload: VisitData, loggedAt: Date) =>

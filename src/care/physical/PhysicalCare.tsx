@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionablesLogger } from '@/care/physical/ActionablesLogger';
 import { ComingSoon } from '@/care/ComingSoon';
+import { ContractionsLogger } from '@/care/physical/ContractionsLogger';
 import { PhysicalBaselineEdit } from '@/care/physical/PhysicalBaselineEdit';
 import { RestLogger } from '@/care/physical/RestLogger';
 import { SymptomsLogger } from '@/care/physical/SymptomsLogger';
@@ -30,6 +31,13 @@ const FEATURES: Feature[] = [
     description: 'Blood pressure, weight, temperature & more.',
     icon: 'pulse-outline',
     blurb: 'Log your blood pressure, weight, temperature and other vitals, and watch the gentle trends across your pregnancy.',
+  },
+  {
+    key: 'contractions',
+    title: 'Contractions',
+    description: 'Time contractions and tell Braxton Hicks from labor.',
+    icon: 'stopwatch-outline',
+    blurb: 'Time how long each contraction lasts and how far apart they come — a calm way to tell practice (Braxton Hicks) contractions from the steady rhythm of labor.',
   },
   {
     key: 'tests',
@@ -85,6 +93,9 @@ export function PhysicalCare({
   if (feature) {
     if (feature.key === 'vitals') {
       return <VitalsLogger userId={userId} onBack={() => setFeature(null)} />;
+    }
+    if (feature.key === 'contractions') {
+      return <ContractionsLogger userId={userId} onBack={() => setFeature(null)} />;
     }
     if (feature.key === 'symptoms') {
       return <SymptomsLogger userId={userId} onBack={() => setFeature(null)} />;
