@@ -1,5 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,7 +17,18 @@ import {
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { addMood, deleteLog, listMoods, type CareLog, type MoodData, type MoodRating } from '@/care/api';
+import {
+  addMood,
+  deleteLog,
+  listMoods,
+  signedFileUrl,
+  uploadCareFile,
+  type CareLog,
+  type MoodData,
+  type MoodRating,
+  type PendingFile,
+  type TestFileRef,
+} from '@/care/api';
 import { loadLogCache } from '@/care/cache';
 import { errorMessage } from '@/lib/errors';
 import { useTheme } from '@/theme';
@@ -174,6 +188,19 @@ export function MoodLogger({ userId, onBack }: { userId: string; onBack: () => v
                       <AppText variant="bodyMuted">{log.data.note}</AppText>
                     </View>
                   ) : null}
+                  {log.data.files?.length ? (
+                    <View
+                      style={{
+                        marginLeft: 44 + t.spacing.md,
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: t.spacing.sm,
+                      }}>
+                      {log.data.files.map((f) => (
+                        <PhotoThumb key={f.path} file={f} size={64} />
+                      ))}
+                    </View>
+                  ) : null}
                 </Card>
               </Animated.View>
             );
@@ -224,6 +251,54 @@ function MoodScale({ value, onChange }: { value: MoodRating; onChange: (r: MoodR
   );
 }
 
+/** A stored photo thumbnail loaded via a short-lived signed URL; taps open it full-screen. */
+function PhotoThumb({ file, size }: { file: TestFileRef; size: number }) {
+  const t = useTheme();
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    // signedFileUrl resolves after a bounded network call; not a cascading render.
+    signedFileUrl(file.path).then((u) => active && setUrl(u));
+    return () => {
+      active = false;
+    };
+  }, [file.path]);
+
+  async function open() {
+    const u = url ?? (await signedFileUrl(file.path));
+    if (!u) {
+      Alert.alert('Could not open photo', 'Please check your connection and try again.');
+      return;
+    }
+    setUrl(u);
+    await WebBrowser.openBrowserAsync(u);
+  }
+
+  return (
+    <Pressable accessibilityRole="imagebutton" accessibilityLabel={file.name} onPress={open}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: t.radius.md,
+          backgroundColor: t.colors.surfaceMuted,
+          borderWidth: 1,
+          borderColor: t.colors.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+        {url ? (
+          <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        ) : (
+          <Ionicons name="image-outline" size={20} color={t.colors.textTertiary} />
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 function AddMoodForm({
   userId,
   onCancel,
@@ -237,16 +312,48 @@ function AddMoodForm({
   const [rating, setRating] = useState<MoodRating>(3);
   const [note, setNote] = useState('');
   const [date, setDate] = useState<Date>(new Date());
+  const [newFiles, setNewFiles] = useState<PendingFile[]>([]);
   const [saving, setSaving] = useState(false);
+
+  function addFile(f: PendingFile) {
+    setNewFiles((prev) => [...prev, f]);
+  }
+
+  async function takePhoto() {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Camera access needed', 'Enable camera access in Settings to take a photo.');
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (res.canceled || !res.assets[0]) return;
+    const a = res.assets[0];
+    addFile({ uri: a.uri, name: a.fileName ?? `photo-${Date.now()}.jpg`, mimeType: a.mimeType ?? 'image/jpeg', kind: 'image', size: a.fileSize });
+  }
+
+  async function choosePhoto() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Photo access needed', 'Enable photo access in Settings to choose a photo.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (res.canceled || !res.assets[0]) return;
+    const a = res.assets[0];
+    addFile({ uri: a.uri, name: a.fileName ?? `image-${Date.now()}.jpg`, mimeType: a.mimeType ?? 'image/jpeg', kind: 'image', size: a.fileSize });
+  }
 
   async function save() {
     if (saving) return;
     setSaving(true);
     try {
+      const uploaded: TestFileRef[] = [];
+      for (const f of newFiles) uploaded.push(await uploadCareFile(userId, f));
       const payload: MoodData = {
         kind: 'mood',
         rating,
         note: note.trim() || undefined,
+        files: uploaded.length ? uploaded : undefined,
       };
       const log = await addMood(userId, payload, date);
       onSaved(log);
@@ -288,6 +395,36 @@ function AddMoodForm({
               onChangeText={setNote}
               multiline
             />
+          </Card>
+
+          <Card style={{ gap: t.spacing.md }}>
+            <AppText variant="label">PHOTOS (OPTIONAL)</AppText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.sm }}>
+              <Button label="Take photo" variant="secondary" icon="camera-outline" onPress={takePhoto} style={{ flexGrow: 1 }} />
+              <Button label="Choose photo" variant="secondary" icon="images-outline" onPress={choosePhoto} style={{ flexGrow: 1 }} />
+            </View>
+
+            {newFiles.length ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.sm }}>
+                {newFiles.map((f) => (
+                  <View key={f.uri} style={{ position: 'relative' }}>
+                    <Image
+                      source={{ uri: f.uri }}
+                      style={{ width: 72, height: 72, borderRadius: t.radius.md, borderWidth: 1, borderColor: t.colors.border }}
+                      contentFit="cover"
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${f.name}`}
+                      hitSlop={8}
+                      onPress={() => setNewFiles((prev) => prev.filter((x) => x.uri !== f.uri))}
+                      style={{ position: 'absolute', top: -8, right: -8, backgroundColor: t.colors.surface, borderRadius: t.radius.pill, borderWidth: 1, borderColor: t.colors.border }}>
+                      <Ionicons name="close-circle" size={22} color={t.colors.danger} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </Card>
         </ScrollView>
 

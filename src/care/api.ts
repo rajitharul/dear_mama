@@ -43,7 +43,7 @@ export type SymptomData = { kind: 'symptom'; symptom: string; severity: SymptomS
 // each presented with an emoji, plus an optional free-text note. A future iteration
 // will attach an AI-powered supportive message to the check-in.
 export type MoodRating = 1 | 2 | 3 | 4 | 5;
-export type MoodData = { kind: 'mood'; rating: MoodRating; note?: string };
+export type MoodData = { kind: 'mood'; rating: MoodRating; note?: string; files?: TestFileRef[] };
 
 // ─── Note to the baby payload (Emotional care) ───
 // A small free-text note to the baby, day by day — a keepsake. `logged_at` is the
